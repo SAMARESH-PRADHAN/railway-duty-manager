@@ -60,6 +60,10 @@ export function exportOtSlipPdf(sheet: DutySheet, emp: Employee, trains: Train[]
     }
   }
   pairs.forEach((l) => { doc.text(l, 14, ty); ty += 4.5; });
+  if (sheet.manualTrainNote) {
+    doc.text(`Additional: ${sheet.manualTrainNote}`, 14, ty);
+    ty += 4.5;
+  }
 
   // Table
   const body = sheet.days.map((d) => {

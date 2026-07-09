@@ -1,5 +1,7 @@
 import { addDays, format, parseISO } from "date-fns";
-import type { DutyDay, DutySheet, TimeSlot, DeductionType } from "./types";
+import type { DutyDay, DutySheet, TimeSlot, LeaveType } from "./types";
+
+export const LEAVE_OPTIONS: LeaveType[] = ["None", "CR", "CL", "LAP", "NH", "PL", "SCL", "Sick"];
 
 export function slotHours(slot: TimeSlot): number {
   if (!slot.from || !slot.to) return 0;
@@ -8,7 +10,7 @@ export function slotHours(slot: TimeSlot): number {
   if ([fh, fm, th, tm].some((n) => Number.isNaN(n))) return 0;
   let start = fh * 60 + fm;
   let end = th * 60 + tm;
-  if (end <= start) end += 24 * 60; // cross midnight
+  if (end <= start) end += 24 * 60;
   return Math.round(((end - start) / 60) * 100) / 100;
 }
 
@@ -29,41 +31,43 @@ export function generate14Days(startISO: string): DutyDay[] {
       isRestDay: isRest,
       rosteredSlots: isRest ? [] : [{ from: "08:00", to: "16:00" }],
       rosteredHours: isRest ? 0 : 8,
-      actualSlots: [],
-      actualHours: 0,
+      actualSlots: isRest ? [] : [{ from: "08:00", to: "16:00" }],
+      actualHours: isRest ? 0 : 8,
       extraHours: 0,
       description: "",
+      leave: "None",
     });
   }
   return days;
 }
 
-export function deductionAmount(t: DeductionType): number {
-  if (t === "CR") return 8;
-  if (t === "CL_LAP_NH_PL_SCL_SICK") return 1;
+export function leaveDeduction(l?: LeaveType): number {
+  if (l === "CR") return 8;
+  if (l && ["CL", "LAP", "NH", "PL", "SCL", "Sick"].includes(l)) return 1;
   return 0;
 }
 
+export function totalDeduction(days: DutyDay[]): number {
+  return Math.round(days.reduce((a, d) => a + leaveDeduction(d.leave), 0) * 100) / 100;
+}
+
+export const STATUTORY_HOURS = 104;
+
 export function recalcSheet(sheet: DutySheet): DutySheet {
-  const days = sheet.days.map((d) => {
-    const rH = sumSlots(d.rosteredSlots);
-    const aH = sumSlots(d.actualSlots);
-    return {
-      ...d,
-      rosteredHours: d.rosteredHours || rH,
-      actualHours: d.actualHours || aH,
-      extraHours: Math.round(((d.actualHours || aH) - (d.rosteredHours || rH)) * 100) / 100,
-    };
-  });
+  const days = sheet.days.map((d) => ({
+    ...d,
+    extraHours: Math.round((d.actualHours - d.rosteredHours) * 100) / 100,
+  }));
   const totalActual = Math.round(days.reduce((a, d) => a + d.actualHours, 0) * 100) / 100;
-  const totalRostered = sheet.totalRosteredHours || 96;
-  const ded = deductionAmount(sheet.deductionType);
-  const ot = Math.round((totalActual - totalRostered - ded) * 100) / 100;
+  const totalRostered = Math.round(days.reduce((a, d) => a + d.rosteredHours, 0) * 100) / 100;
+  const ded = totalDeduction(days);
+  const ot = Math.round((totalActual - STATUTORY_HOURS) * 100) / 100;
   return {
     ...sheet,
     days,
     totalActualHours: totalActual,
-    statutoryHours: 104,
+    totalRosteredHours: totalRostered || sheet.totalRosteredHours || 96,
+    statutoryHours: STATUTORY_HOURS,
     deductionHours: ded,
     otPayable: ot,
   };
@@ -87,4 +91,11 @@ export function fmtHours(n: number) {
   const h = Math.floor(abs);
   const m = Math.round((abs - h) * 60);
   return `${sign}${String(h).padStart(2, "0")}.${String(m).padStart(2, "0")}`;
+}
+
+/** Deprecated helper retained for back-compat with older serialized sheets. */
+export function deductionAmount(t: string): number {
+  if (t === "CR") return 8;
+  if (t === "CL_LAP_NH_PL_SCL_SICK") return 1;
+  return 0;
 }

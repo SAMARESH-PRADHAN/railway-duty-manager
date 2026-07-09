@@ -1,18 +1,19 @@
-import { createFileRoute, useNavigate, useSearch } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { createFileRoute, useBlocker, useNavigate, useSearch } from "@tanstack/react-router";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { addDays, format, parseISO } from "date-fns";
 import { v4 as uuid } from "uuid";
 import { useData } from "@/context/DataContext";
-import type { DeductionType, DutyDay, DutySheet, TimeSlot } from "@/lib/types";
-import { deductionAmount, fmtDate, fmtHours, generate14Days, periodsOverlap, sumSlots } from "@/lib/ot-utils";
+import type { DutyDay, DutySheet, LeaveType, TimeSlot } from "@/lib/types";
+import { LEAVE_OPTIONS, STATUTORY_HOURS, fmtDate, fmtHours, generate14Days, leaveDeduction, periodsOverlap, sumSlots, totalDeduction } from "@/lib/ot-utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Plus, Trash2, X, Save, ArrowLeft, ArrowRight } from "lucide-react";
+import { Combobox } from "@/components/Combobox";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { useConfirm } from "@/components/ConfirmProvider";
+import { Plus, X, Save, ArrowLeft, ArrowRight, ChevronLeft, FileText } from "lucide-react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/duty")({
@@ -23,27 +24,48 @@ export const Route = createFileRoute("/duty")({
 function DutyPage() {
   const { employees, trains, dutySheets, saveDutySheet } = useData();
   const nav = useNavigate();
+  const confirmDialog = useConfirm();
   const { id: editId } = useSearch({ from: "/duty" }) as { id?: string };
   const existing = editId ? dutySheets.find((d) => d.id === editId) : undefined;
 
   const [step, setStep] = useState<1 | 2 | 3 | 4>(existing ? 4 : 1);
   const [employeeId, setEmployeeId] = useState<string>(existing?.employeeId ?? "");
   const [trainIds, setTrainIds] = useState<string[]>(existing?.trainIds ?? []);
+  const [manualTrainNote, setManualTrainNote] = useState<string>(existing?.manualTrainNote ?? "");
   const [startDate, setStartDate] = useState<string>(existing?.periodStartDate ?? "");
   const [days, setDays] = useState<DutyDay[]>(existing?.days ?? []);
-  const [totalRostered, setTotalRostered] = useState<number>(existing?.totalRosteredHours ?? 96);
-  const [deduction, setDeduction] = useState<DeductionType>(existing?.deductionType ?? "none");
   const [sheetId] = useState<string>(existing?.id ?? uuid());
+  const [dirty, setDirty] = useState(false);
+  const initialLoad = useRef(true);
+
+  const [sundayModalOpen, setSundayModalOpen] = useState(false);
+  const [pendingStart, setPendingStart] = useState<string>("");
+  const [crPicker, setCrPicker] = useState<{ open: boolean; dayIndex: number | null }>({ open: false, dayIndex: null });
+  const [unsavedModal, setUnsavedModal] = useState<{ open: boolean; proceed: (() => void) | null }>({ open: false, proceed: null });
 
   const activeEmp = employees.filter((e) => !e.isDeleted && e.status === "active");
   const activeTr = trains.filter((t) => !t.isDeleted && t.status === "active");
   const emp = employees.find((e) => e.id === employeeId);
 
+  // Mark dirty on any relevant edit (skip the initial mount).
   useEffect(() => {
-    if (!existing && startDate && days.length === 0) {
-      setDays(generate14Days(startDate));
-    }
-  }, [startDate, existing, days.length]);
+    if (initialLoad.current) { initialLoad.current = false; return; }
+    setDirty(true);
+  }, [employeeId, trainIds, manualTrainNote, startDate, days]);
+
+  // Block cross-route navigation while dirty; show custom modal.
+  useBlocker({
+    shouldBlockFn: ({ next }) => {
+      if (!dirty) return false;
+      if (next.pathname === "/duty") return false;
+      setUnsavedModal({
+        open: true,
+        proceed: () => nav({ to: next.pathname as any, search: next.search as any }),
+      });
+      return true;
+    },
+    enableBeforeUnload: () => dirty,
+  });
 
   const endDate = useMemo(() => startDate ? format(addDays(parseISO(startDate), 13), "yyyy-MM-dd") : "", [startDate]);
 
@@ -51,6 +73,7 @@ function DutyPage() {
     if (!employeeId || !startDate) return false;
     return dutySheets.some((s) =>
       s.id !== sheetId &&
+      !s.isDraft &&
       s.employeeId === employeeId &&
       periodsOverlap(s.periodStartDate, s.periodEndDate, startDate, endDate));
   }, [employeeId, startDate, endDate, dutySheets, sheetId]);
@@ -67,10 +90,16 @@ function DutyPage() {
 
   const totals = useMemo(() => {
     const totalActual = Math.round(days.reduce((a, d) => a + d.actualHours, 0) * 100) / 100;
-    const ded = deductionAmount(deduction);
-    const ot = Math.round((totalActual - totalRostered - ded) * 100) / 100;
-    return { totalActual, ded, ot };
-  }, [days, totalRostered, deduction]);
+    const totalRost = Math.round(days.reduce((a, d) => a + d.rosteredHours, 0) * 100) / 100;
+    const ded = totalDeduction(days);
+    const ot = Math.round((totalActual - STATUTORY_HOURS) * 100) / 100;
+    return { totalActual, totalRost, ded, ot };
+  }, [days]);
+
+  const bankedRestDays = useMemo(
+    () => days.filter((d) => d.isRestDay && d.actualHours > 0),
+    [days],
+  );
 
   const updateDay = (idx: number, patch: Partial<DutyDay>) => {
     setDays((prev) => {
@@ -84,35 +113,88 @@ function DutyPage() {
     });
   };
 
-  const save = () => {
+  // When user changes rostered slots, auto-copy into actual (as sensible default).
+  const setRosteredSlots = (idx: number, slots: TimeSlot[]) => {
+    updateDay(idx, { rosteredSlots: slots, rosteredHours: sumSlots(slots), actualSlots: slots.map((s) => ({ ...s })), actualHours: sumSlots(slots) });
+  };
+
+  const setLeave = (idx: number, leave: LeaveType) => {
+    if (leave === "CR" && bankedRestDays.length > 0) {
+      // Provisionally set the leave; open picker to attribute it
+      updateDay(idx, { leave });
+      setCrPicker({ open: true, dayIndex: idx });
+      return;
+    }
+    updateDay(idx, { leave });
+  };
+
+  const attributeCr = (targetIdx: number, bankedDate: string) => {
+    updateDay(targetIdx, { description: `CR of ${fmtDate(bankedDate)}` });
+    setCrPicker({ open: false, dayIndex: null });
+  };
+
+  const applyStartDate = (iso: string) => {
+    setStartDate(iso);
+    setDays(generate14Days(iso));
+  };
+
+  const handleStartDateChange = (iso: string) => {
+    if (!iso) return;
+    const isSunday = format(parseISO(iso), "EEEE") === "Sunday";
+    if (isSunday) {
+      applyStartDate(iso);
+    } else {
+      setPendingStart(iso);
+      setSundayModalOpen(true);
+    }
+  };
+
+  const save = async (asDraft: boolean) => {
     if (!emp) return toast.error("Select an employee");
-    if (trainIds.length === 0) return toast.error("Select at least one train");
+    if (!asDraft && trainIds.length === 0 && !manualTrainNote.trim()) return toast.error("Select at least one train or enter an emergency-duty note");
     if (!startDate) return toast.error("Pick a start date");
-    if (overlaps) return toast.error("Overlaps with an existing duty sheet");
+    if (!asDraft && overlaps) return toast.error("Overlaps with an existing duty sheet");
     const sheet: DutySheet = {
       id: sheetId, employeeId, trainIds,
+      manualTrainNote: manualTrainNote.trim() || undefined,
       periodStartDate: startDate, periodEndDate: endDate,
       days,
       totalActualHours: totals.totalActual,
-      totalRosteredHours: totalRostered,
-      statutoryHours: 104,
-      deductionType: deduction,
+      totalRosteredHours: totals.totalRost,
+      statutoryHours: STATUTORY_HOURS,
       deductionHours: totals.ded,
       otPayable: totals.ot,
+      isDraft: asDraft,
       createdAt: existing?.createdAt ?? new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
     saveDutySheet(sheet);
-    toast.success("Duty sheet saved");
-    nav({ to: "/records" });
+    setDirty(false);
+    toast.success(asDraft ? "Saved as draft" : "Duty sheet saved");
+    // Small tick so blocker sees dirty=false
+    setTimeout(() => nav({ to: "/records" }), 0);
+  };
+
+  const handleBack = async () => {
+    if (step > 1 && !existing) { setStep((s) => (s - 1) as 1 | 2 | 3 | 4); return; }
+    if (dirty) {
+      setUnsavedModal({ open: true, proceed: () => nav({ to: "/records" }) });
+    } else {
+      nav({ to: "/records" });
+    }
   };
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-2">
-        <div>
-          <h1 className="text-2xl md:text-3xl font-bold text-[#0b2545]">{existing ? "Edit" : "New"} Duty Sheet</h1>
-          <p className="text-sm text-slate-500">14-day OT calculation</p>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={handleBack} className="shrink-0">
+            <ChevronLeft className="h-4 w-4 mr-1" /> Back
+          </Button>
+          <div>
+            <h1 className="text-2xl md:text-3xl font-bold text-[#0b2545]">{existing ? "Edit" : "Generate New"} OT</h1>
+            <p className="text-sm text-slate-500">14-day OT calculation</p>
+          </div>
         </div>
         <Stepper step={step} />
       </div>
@@ -120,18 +202,20 @@ function DutyPage() {
       {step === 1 && (
         <Card><CardHeader><CardTitle className="text-base">Step 1 — Select Employee</CardTitle></CardHeader>
           <CardContent className="space-y-4">
-            <Select value={employeeId} onValueChange={setEmployeeId}>
-              <SelectTrigger className="max-w-md"><SelectValue placeholder="Choose employee..." /></SelectTrigger>
-              <SelectContent>
-                {activeEmp.map((e) => <SelectItem key={e.id} value={e.id}>{e.name} — Token {e.tokenNo} ({e.designation})</SelectItem>)}
-              </SelectContent>
-            </Select>
+            <Combobox
+              className="max-w-md"
+              value={employeeId}
+              onChange={setEmployeeId}
+              placeholder="Choose employee…"
+              options={activeEmp.map((e) => ({ value: e.id, label: `${e.name} — Token ${e.tokenNo}`, hint: `${e.designation} · Group ${e.groupType}` }))}
+            />
             {emp && (
-              <div className="rounded-lg border bg-slate-50 p-4 grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+              <div className="rounded-lg border bg-slate-50 p-4 grid grid-cols-2 md:grid-cols-5 gap-3 text-sm">
                 <div><div className="text-xs text-slate-500">Name</div><div className="font-semibold">{emp.name}</div></div>
                 <div><div className="text-xs text-slate-500">Token</div><div className="font-semibold">{emp.tokenNo}</div></div>
                 <div><div className="text-xs text-slate-500">PF No</div><div className="font-semibold">{emp.pfNumber}</div></div>
                 <div><div className="text-xs text-slate-500">Designation</div><div className="font-semibold">{emp.designation}</div></div>
+                <div><div className="text-xs text-slate-500">Group Type</div><div className="font-semibold">Group {emp.groupType}</div></div>
               </div>
             )}
             <div className="flex justify-end">
@@ -161,44 +245,52 @@ function DutyPage() {
                 );
               })}
             </div>
+            <div>
+              <Label className="text-xs">Other / Emergency Duty (manual entry, optional)</Label>
+              <Input
+                placeholder='e.g. "Emergency relief duty — special train"'
+                value={manualTrainNote}
+                onChange={(e) => setManualTrainNote(e.target.value)}
+              />
+            </div>
             <div className="flex justify-between">
               <Button variant="outline" onClick={() => setStep(1)}><ArrowLeft className="h-4 w-4 mr-1" /> Back</Button>
-              <Button disabled={trainIds.length === 0} onClick={() => setStep(3)} className="bg-[#0b2545] hover:bg-[#0b2545]/90">Next <ArrowRight className="h-4 w-4 ml-1" /></Button>
+              <Button disabled={trainIds.length === 0 && !manualTrainNote.trim()} onClick={() => setStep(3)} className="bg-[#0b2545] hover:bg-[#0b2545]/90">Next <ArrowRight className="h-4 w-4 ml-1" /></Button>
             </div>
           </CardContent>
         </Card>
       )}
 
       {step === 3 && (
-        <Card><CardHeader><CardTitle className="text-base">Step 3 — Select Start Date</CardTitle></CardHeader>
-          <CardContent className="space-y-3">
-            <div className="flex flex-wrap items-end gap-3">
-              <div>
-                <Label className="text-xs">Start Date (Sunday recommended)</Label>
-                <Input type="date" value={startDate} onChange={(e) => { setStartDate(e.target.value); setDays(generate14Days(e.target.value)); }} className="max-w-xs" />
+        <>
+          <Card><CardHeader><CardTitle className="text-base">Step 3 — Select Start Date</CardTitle></CardHeader>
+            <CardContent className="space-y-3">
+              <div className="flex flex-wrap items-end gap-3">
+                <div>
+                  <Label className="text-xs">Start Date (Sunday recommended)</Label>
+                  <Input type="date" value={startDate} onChange={(e) => handleStartDateChange(e.target.value)} className="max-w-xs" />
+                </div>
+                {startDate && (
+                  <div className="text-sm text-slate-600">
+                    Period: <b>{fmtDate(startDate)}</b> to <b>{fmtDate(endDate)}</b>
+                  </div>
+                )}
               </div>
-              {startDate && (
-                <div className="text-sm text-slate-600">
-                  Period: <b>{fmtDate(startDate)}</b> to <b>{fmtDate(endDate)}</b>
+              {overlaps && (
+                <div className="text-xs text-rose-700 bg-rose-50 border border-rose-200 rounded p-2">
+                  Warning: This period overlaps with another duty sheet for the same employee.
                 </div>
               )}
-            </div>
-            {startDate && format(parseISO(startDate), "EEEE") !== "Sunday" && (
-              <div className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded p-2">
-                Warning: Selected date is not a Sunday. 14-day periods conventionally begin on Sundays.
-              </div>
-            )}
-            {overlaps && (
-              <div className="text-xs text-rose-700 bg-rose-50 border border-rose-200 rounded p-2">
-                Warning: This period overlaps with another duty sheet for the same employee.
-              </div>
-            )}
-            <div className="flex justify-between">
-              <Button variant="outline" onClick={() => setStep(2)}><ArrowLeft className="h-4 w-4 mr-1" /> Back</Button>
-              <Button disabled={!startDate} onClick={() => setStep(4)} className="bg-[#0b2545] hover:bg-[#0b2545]/90">Next <ArrowRight className="h-4 w-4 ml-1" /></Button>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+
+          <CopyFromPastDuty employeeId={employeeId} sheets={dutySheets} sheetId={sheetId} days={days} setDays={setDays} startDate={startDate} />
+
+          <div className="flex justify-between">
+            <Button variant="outline" onClick={() => setStep(2)}><ArrowLeft className="h-4 w-4 mr-1" /> Back</Button>
+            <Button disabled={!startDate} onClick={() => setStep(4)} className="bg-[#0b2545] hover:bg-[#0b2545]/90">Next <ArrowRight className="h-4 w-4 ml-1" /></Button>
+          </div>
+        </>
       )}
 
       {step === 4 && (
@@ -208,14 +300,15 @@ function DutyPage() {
         </CardHeader>
           <CardContent className="space-y-4">
             <div className="overflow-x-auto -mx-6 px-6">
-              <table className="min-w-[900px] w-full text-xs border">
+              <table className="min-w-[1000px] w-full text-xs border">
                 <thead className="bg-slate-100 text-left">
                   <tr>
-                    <th className="p-2 border">Day/Date</th>
+                    <th className="p-2 border sticky left-0 bg-slate-100 z-10">Day/Date</th>
                     <th className="p-2 border">Rostered Timings</th>
                     <th className="p-2 border w-20">R.Hrs</th>
                     <th className="p-2 border">Actual Timings</th>
                     <th className="p-2 border w-20">A.Hrs</th>
+                    <th className="p-2 border w-24">Leave</th>
                     <th className="p-2 border w-20">Extra</th>
                     <th className="p-2 border min-w-[180px]">Description</th>
                   </tr>
@@ -223,7 +316,7 @@ function DutyPage() {
                 <tbody>
                   {days.map((d, i) => (
                     <tr key={d.date} className={d.isRestDay ? "bg-amber-50" : ""}>
-                      <td className="p-2 border align-top">
+                      <td className="p-2 border align-top sticky left-0 bg-inherit z-10">
                         <div className="font-semibold">{d.dayName.slice(0, 3)}</div>
                         <div className="text-slate-500">{fmtDate(d.date)}</div>
                         <label className="flex items-center gap-1 mt-1 text-[10px]">
@@ -232,7 +325,7 @@ function DutyPage() {
                         </label>
                       </td>
                       <td className="p-2 border align-top">
-                        <SlotEditor disabled={d.isRestDay} slots={d.rosteredSlots} onChange={(s) => updateDay(i, { rosteredSlots: s, rosteredHours: sumSlots(s) })} />
+                        <SlotEditor slots={d.rosteredSlots} onChange={(s) => setRosteredSlots(i, s)} />
                       </td>
                       <td className="p-2 border align-top">
                         <Input className="h-7 text-xs" type="number" step="0.01" value={d.rosteredHours} onChange={(e) => updateDay(i, { rosteredHours: Number(e.target.value) })} />
@@ -244,9 +337,21 @@ function DutyPage() {
                         <Input className="h-7 text-xs" type="number" step="0.01" value={d.actualHours} onChange={(e) => updateDay(i, { actualHours: Number(e.target.value) })} />
                         {d.actualHours > 16 && <div className="text-[10px] text-amber-700">High</div>}
                       </td>
+                      <td className="p-2 border align-top">
+                        <select
+                          className="h-7 text-xs border rounded px-1 w-full bg-white"
+                          value={d.leave ?? "None"}
+                          onChange={(e) => setLeave(i, e.target.value as LeaveType)}
+                        >
+                          {LEAVE_OPTIONS.map((l) => <option key={l} value={l}>{l}</option>)}
+                        </select>
+                        {leaveDeduction(d.leave) > 0 && (
+                          <div className="text-[10px] text-rose-600">-{fmtHours(leaveDeduction(d.leave))}</div>
+                        )}
+                      </td>
                       <td className={`p-2 border align-top font-semibold ${d.extraHours < 0 ? "text-rose-600" : "text-emerald-700"}`}>{fmtHours(d.extraHours)}</td>
                       <td className="p-2 border align-top">
-                        <Input className="h-7 text-xs" value={d.description} onChange={(e) => updateDay(i, { description: e.target.value })} placeholder="e.g. OT/OL Vande Bharat..." />
+                        <Input className="h-7 text-xs" value={d.description} onChange={(e) => updateDay(i, { description: e.target.value })} placeholder="e.g. OT/OL Vande Bharat…" />
                       </td>
                     </tr>
                   ))}
@@ -255,37 +360,118 @@ function DutyPage() {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              <StatBox label="Total Rostered" value={fmtHours(totalRostered)}>
-                <Input className="mt-1 h-7" type="number" step="0.01" value={totalRostered} onChange={(e) => setTotalRostered(Number(e.target.value))} />
-              </StatBox>
+              <StatBox label="Total Rostered" value={fmtHours(totals.totalRost)} />
               <StatBox label="Total Actual" value={fmtHours(totals.totalActual)} />
               <StatBox label="Statutory (fixed)" value="104.00" />
-              <StatBox label="OT Payable" value={fmtHours(totals.ot)} highlight />
+              <StatBox label="OT Payable (Actual − 104)" value={fmtHours(totals.ot)} highlight />
             </div>
 
-            <div className="rounded-lg border p-4 space-y-2">
-              <div className="text-sm font-semibold">Deduction</div>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-2 text-sm">
-                {([
-                  ["none", "No Deduction (0h)"],
-                  ["CR", "CR — Compensatory Rest (−8h)"],
-                  ["CL_LAP_NH_PL_SCL_SICK", "CL / LAP / NH / PL / SCL / Sick (−1h)"],
-                ] as [DeductionType, string][]).map(([v, l]) => (
-                  <label key={v} className={`flex items-center gap-2 rounded border p-2 cursor-pointer ${deduction === v ? "border-blue-500 bg-blue-50" : ""}`}>
-                    <input type="radio" name="ded" checked={deduction === v} onChange={() => setDeduction(v)} />
-                    {l}
-                  </label>
-                ))}
-              </div>
+            <div className="rounded-lg border bg-slate-50 p-3 text-xs text-slate-600">
+              Auto-summed leave deduction across all 14 rows: <b>{fmtHours(totals.ded)}</b> (informational — OT payable is calculated as Total Actual − Statutory 104).
             </div>
 
-            <div className="flex justify-between">
+            <div className="flex justify-between flex-wrap gap-2">
               <Button variant="outline" onClick={() => setStep(3)}><ArrowLeft className="h-4 w-4 mr-1" /> Back</Button>
-              <Button onClick={save} className="bg-emerald-600 hover:bg-emerald-700"><Save className="h-4 w-4 mr-1" /> Save Duty Sheet</Button>
+              <div className="flex gap-2">
+                <Button variant="outline" onClick={() => save(true)}><FileText className="h-4 w-4 mr-1" /> Save as Draft</Button>
+                <Button onClick={() => save(false)} className="bg-emerald-600 hover:bg-emerald-700"><Save className="h-4 w-4 mr-1" /> Save Duty Sheet</Button>
+              </div>
             </div>
           </CardContent>
         </Card>
       )}
+
+      {/* Sunday warning modal */}
+      <Dialog open={sundayModalOpen} onOpenChange={setSundayModalOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Non-Sunday start date</DialogTitle>
+            <DialogDescription>
+              The selected date ({pendingStart && fmtDate(pendingStart)}) is not a Sunday.
+              Duty periods conventionally start on Sunday. Do you want to continue with this date anyway?
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2 sm:justify-end">
+            <Button variant="outline" onClick={() => { setSundayModalOpen(false); setPendingStart(""); }}>Choose Another Date</Button>
+            <Button className="bg-[#0b2545] hover:bg-[#0b2545]/90" onClick={() => { applyStartDate(pendingStart); setSundayModalOpen(false); setPendingStart(""); }}>Confirm &amp; Continue</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* CR picker */}
+      <Dialog open={crPicker.open} onOpenChange={(o) => { if (!o) setCrPicker({ open: false, dayIndex: null }); }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Attribute CR to a banked rest day</DialogTitle>
+            <DialogDescription>Select which worked rest day this compensatory rest is offsetting.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2 max-h-64 overflow-y-auto">
+            {bankedRestDays.length === 0 && (
+              <div className="text-sm text-slate-500">No banked rest days found in this sheet yet.</div>
+            )}
+            {bankedRestDays.map((d) => (
+              <button
+                key={d.date}
+                className="w-full text-left rounded border p-2 text-sm hover:bg-slate-50"
+                onClick={() => crPicker.dayIndex !== null && attributeCr(crPicker.dayIndex, d.date)}
+              >
+                {d.dayName} — {fmtDate(d.date)} (worked {fmtHours(d.actualHours)})
+              </button>
+            ))}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCrPicker({ open: false, dayIndex: null })}>Skip</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Unsaved changes modal */}
+      <Dialog open={unsavedModal.open} onOpenChange={(o) => { if (!o) setUnsavedModal({ open: false, proceed: null }); }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Unsaved changes</DialogTitle>
+            <DialogDescription>
+              You have unsaved changes in this duty sheet. What would you like to do?
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex-col-reverse sm:flex-row gap-2 sm:justify-between">
+            <Button variant="outline" onClick={() => setUnsavedModal({ open: false, proceed: null })}>Cancel</Button>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                className="border-rose-300 text-rose-700 hover:bg-rose-50"
+                onClick={async () => {
+                  const proceed = unsavedModal.proceed;
+                  const ok = await confirmDialog({
+                    title: "Discard changes?",
+                    description: "This will permanently discard your changes. Continue?",
+                    confirmText: "Discard",
+                    destructive: true,
+                  });
+                  if (ok) {
+                    setDirty(false);
+                    setUnsavedModal({ open: false, proceed: null });
+                    setTimeout(() => proceed?.(), 0);
+                  }
+                }}
+              >
+                Discard &amp; Leave
+              </Button>
+              <Button
+                className="bg-[#0b2545] hover:bg-[#0b2545]/90"
+                onClick={async () => {
+                  const proceed = unsavedModal.proceed;
+                  setUnsavedModal({ open: false, proceed: null });
+                  await save(true);
+                  setTimeout(() => proceed?.(), 0);
+                }}
+              >
+                Save as Draft
+              </Button>
+            </div>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -305,18 +491,16 @@ function Stepper({ step }: { step: number }) {
   );
 }
 
-function StatBox({ label, value, highlight, children }: { label: string; value: string; highlight?: boolean; children?: React.ReactNode }) {
+function StatBox({ label, value, highlight }: { label: string; value: string; highlight?: boolean }) {
   return (
     <div className={`rounded-lg border p-3 ${highlight ? "bg-emerald-50 border-emerald-300" : "bg-slate-50"}`}>
       <div className="text-xs text-slate-500">{label}</div>
       <div className={`text-xl font-bold ${highlight ? "text-emerald-700" : "text-slate-800"}`}>{value}</div>
-      {children}
     </div>
   );
 }
 
-function SlotEditor({ slots, onChange, disabled }: { slots: TimeSlot[]; onChange: (s: TimeSlot[]) => void; disabled?: boolean }) {
-  if (disabled) return <div className="text-xs text-slate-500 italic">REST</div>;
+function SlotEditor({ slots, onChange }: { slots: TimeSlot[]; onChange: (s: TimeSlot[]) => void }) {
   return (
     <div className="space-y-1">
       {slots.map((s, i) => (
@@ -333,5 +517,94 @@ function SlotEditor({ slots, onChange, disabled }: { slots: TimeSlot[]; onChange
         </button>
       )}
     </div>
+  );
+}
+
+function CopyFromPastDuty({
+  employeeId, sheets, sheetId, days, setDays, startDate,
+}: {
+  employeeId: string; sheets: DutySheet[]; sheetId: string;
+  days: DutyDay[]; setDays: (d: DutyDay[]) => void; startDate: string;
+}) {
+  const [selectedSheet, setSelectedSheet] = useState<string>("");
+  const [selectedDay, setSelectedDay] = useState<string>("");
+  const [targetIdx, setTargetIdx] = useState<string>("");
+
+  const past = useMemo(() => {
+    return sheets
+      .filter((s) => s.employeeId === employeeId && s.id !== sheetId && !s.isDraft)
+      .sort((a, b) => (a.periodStartDate < b.periodStartDate ? 1 : -1));
+  }, [sheets, employeeId, sheetId]);
+
+  const activeSheet = past.find((s) => s.id === selectedSheet);
+  const activeDay = activeSheet?.days.find((d) => d.date === selectedDay);
+
+  const applyCopy = () => {
+    if (!activeDay || !targetIdx || days.length === 0) return;
+    const idx = Number(targetIdx);
+    const next = [...days];
+    next[idx] = {
+      ...next[idx],
+      isRestDay: activeDay.isRestDay,
+      rosteredSlots: activeDay.rosteredSlots.map((s) => ({ ...s })),
+      rosteredHours: activeDay.rosteredHours,
+      actualSlots: activeDay.rosteredSlots.map((s) => ({ ...s })),
+      actualHours: activeDay.rosteredHours,
+      extraHours: 0,
+    };
+    setDays(next);
+    toast.success("Roster copied from past duty");
+    setSelectedSheet(""); setSelectedDay(""); setTargetIdx("");
+  };
+
+  if (past.length === 0) return null;
+
+  return (
+    <Card>
+      <CardHeader><CardTitle className="text-base">Copy roster from a past duty day (optional)</CardTitle></CardHeader>
+      <CardContent className="space-y-3">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <div>
+            <Label className="text-xs">Past Duty Sheet</Label>
+            <Combobox
+              value={selectedSheet}
+              onChange={(v) => { setSelectedSheet(v); setSelectedDay(""); }}
+              options={past.map((s) => ({ value: s.id, label: `${fmtDate(s.periodStartDate)} → ${fmtDate(s.periodEndDate)}`, hint: `${s.days.length} days` }))}
+              placeholder="Choose past sheet…"
+            />
+          </div>
+          <div>
+            <Label className="text-xs">Past Day</Label>
+            <Combobox
+              disabled={!activeSheet}
+              value={selectedDay}
+              onChange={setSelectedDay}
+              options={(activeSheet?.days ?? []).map((d) => ({
+                value: d.date,
+                label: `${fmtDate(d.date)} — ${d.dayName.slice(0, 3)}`,
+                hint: d.isRestDay ? "REST" : d.rosteredSlots.map((s) => `${s.from}–${s.to}`).join(" / "),
+              }))}
+              placeholder="Choose past day…"
+            />
+          </div>
+          <div>
+            <Label className="text-xs">Copy onto (new period day)</Label>
+            <Combobox
+              disabled={!startDate || !selectedDay}
+              value={targetIdx}
+              onChange={setTargetIdx}
+              options={days.map((d, i) => ({
+                value: String(i),
+                label: `Day ${i + 1}: ${fmtDate(d.date)} (${d.dayName.slice(0, 3)})`,
+              }))}
+              placeholder="Choose target day…"
+            />
+          </div>
+        </div>
+        <div className="flex justify-end">
+          <Button disabled={!activeDay || !targetIdx} onClick={applyCopy} className="bg-[#0b2545] hover:bg-[#0b2545]/90">Copy Roster</Button>
+        </div>
+      </CardContent>
+    </Card>
   );
 }

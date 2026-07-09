@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { v4 as uuid } from "uuid";
 import { KEYS, clearAll, readList, writeList } from "@/lib/storage";
-import { seedEmployees, seedTrains } from "@/lib/seed";
+import { seedDutySheets, seedEmployees, seedTrains } from "@/lib/seed";
 import type { DutySheet, Employee, Train } from "@/lib/types";
 import { recalcSheet } from "@/lib/ot-utils";
 
@@ -36,13 +36,15 @@ export function DataProvider({ children }: { children: ReactNode }) {
     const seeded = readList<string>(KEYS.seeded);
     let emps = readList<Employee>(KEYS.employees);
     let trs = readList<Train>(KEYS.trains);
-    const ds = readList<DutySheet>(KEYS.dutysheets);
+    let ds = readList<DutySheet>(KEYS.dutysheets);
     if (seeded.length === 0 || emps.length === 0) {
       emps = seedEmployees();
       trs = seedTrains();
+      ds = seedDutySheets(emps, trs);
       writeList(KEYS.employees, emps);
       writeList(KEYS.trains, trs);
-      writeList(KEYS.seeded, ["1"]);
+      writeList(KEYS.dutysheets, ds);
+      writeList(KEYS.seeded, ["2"]);
     }
     setEmployees(emps);
     setTrains(trs);
@@ -118,12 +120,14 @@ export function DataProvider({ children }: { children: ReactNode }) {
     clearAll();
     const emps = seedEmployees();
     const trs = seedTrains();
+    const ds = seedDutySheets(emps, trs);
     writeList(KEYS.employees, emps);
     writeList(KEYS.trains, trs);
-    writeList(KEYS.seeded, ["1"]);
+    writeList(KEYS.dutysheets, ds);
+    writeList(KEYS.seeded, ["2"]);
     setEmployees(emps);
     setTrains(trs);
-    setDutySheets([]);
+    setDutySheets(ds);
   }, []);
 
   const value = useMemo<DataCtx>(() => ({
