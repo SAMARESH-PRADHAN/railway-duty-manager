@@ -37,7 +37,7 @@ function RecordsPage() {
           <h1 className="text-2xl md:text-3xl font-bold text-[#0b2545]">Duty Records</h1>
           <p className="text-sm text-slate-500">All saved 14-day duty sheets</p>
         </div>
-        <Link to="/duty"><Button className="bg-[#0b2545] hover:bg-[#0b2545]/90">+ Generate New OT</Button></Link>
+        <Link to="/duty" search={{ id: undefined }}><Button className="bg-[#0b2545] hover:bg-[#0b2545]/90">+ Generate New OT</Button></Link>
       </div>
 
       <Card><CardContent className="p-4 grid grid-cols-1 md:grid-cols-4 gap-3">
