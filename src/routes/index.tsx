@@ -61,7 +61,7 @@ function Dashboard() {
           {recent.length === 0 ? (
             <div className="text-sm text-slate-500 py-6 text-center">
               No duty sheets yet.{" "}
-              <Link to="/duty" className="text-blue-600 hover:underline">Create your first one</Link>.
+              <Link to="/duty" className="text-blue-600 hover:underline">Generate New OT</Link>.
             </div>
           ) : (
             <div className="overflow-x-auto">

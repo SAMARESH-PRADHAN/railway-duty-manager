@@ -8,14 +8,17 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Pencil, Trash2, RotateCcw, Plus, Power } from "lucide-react";
+import { Combobox } from "@/components/Combobox";
+import { useConfirm } from "@/components/ConfirmProvider";
+import { exportSheet } from "@/lib/excel-export";
+import { Pencil, Trash2, RotateCcw, Plus, Power, Download } from "lucide-react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/employees")({ component: EmployeesPage });
 
 const DESIGNATIONS = ["Asst", "Tech-I", "Tech-II", "Tech-III", "Sr.Tech", "Helper"];
 const GROUPS = ["A", "B", "C", "D", "E", "F"];
+const BATCHES = ["A BATCH", "B BATCH", "RAJDHANI", "SICKLINE/IOH", "VANDE BHARAT"];
 
 const emptyForm: Partial<Employee> = {
   name: "", pfNumber: "", tokenNo: "", designation: "Tech-I", presentBatch: "A BATCH",
@@ -24,6 +27,7 @@ const emptyForm: Partial<Employee> = {
 
 function EmployeesPage() {
   const { employees, addEmployee, updateEmployee, toggleEmployeeStatus, softDeleteEmployee, restoreEmployee } = useData();
+  const confirm = useConfirm();
   const [q, setQ] = useState("");
   const [fDesig, setFDesig] = useState<string>("all");
   const [fGroup, setFGroup] = useState<string>("all");
@@ -32,6 +36,8 @@ function EmployeesPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<Employee | null>(null);
   const [form, setForm] = useState<Partial<Employee>>(emptyForm);
+
+  const hasFilter = q.trim() !== "" || fDesig !== "all" || fGroup !== "all" || fStatus !== "all";
 
   const filtered = useMemo(() => {
     return employees.filter((e) => {
@@ -62,6 +68,16 @@ function EmployeesPage() {
     setDialogOpen(false);
   };
 
+  const downloadExcel = () => {
+    const rows = filtered.map((e) => ({
+      Sl: e.slNo, Name: e.name, "PF No": e.pfNumber, Token: e.tokenNo,
+      Designation: e.designation, Batch: e.presentBatch, Group: e.groupType,
+      Phone: e.phone, Address: e.address, Status: e.status,
+    }));
+    exportSheet(rows, `employees_${hasFilter ? "filtered" : "all"}_${new Date().toISOString().slice(0, 10)}.xlsx`, "Employees");
+    toast.success("Excel downloaded");
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -69,7 +85,11 @@ function EmployeesPage() {
           <h1 className="text-2xl md:text-3xl font-bold text-[#0b2545]">Employees</h1>
           <p className="text-sm text-slate-500">Manage technical staff records</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
+          <Button variant="outline" onClick={downloadExcel}>
+            <Download className="h-4 w-4 mr-1" />
+            Download Excel {hasFilter ? "(Filtered)" : "(All)"}
+          </Button>
           <Button variant="outline" onClick={() => setShowArchived((s) => !s)}>
             {showArchived ? "Show Active" : "Show Archived"}
           </Button>
@@ -80,28 +100,24 @@ function EmployeesPage() {
       <Card>
         <CardContent className="p-4 grid grid-cols-1 md:grid-cols-4 gap-3">
           <Input placeholder="Search name / token / PF" value={q} onChange={(e) => setQ(e.target.value)} />
-          <Select value={fDesig} onValueChange={setFDesig}>
-            <SelectTrigger><SelectValue placeholder="Designation" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Designations</SelectItem>
-              {DESIGNATIONS.map((d) => <SelectItem key={d} value={d}>{d}</SelectItem>)}
-            </SelectContent>
-          </Select>
-          <Select value={fGroup} onValueChange={setFGroup}>
-            <SelectTrigger><SelectValue placeholder="Group" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Groups</SelectItem>
-              {GROUPS.map((g) => <SelectItem key={g} value={g}>Group {g}</SelectItem>)}
-            </SelectContent>
-          </Select>
-          <Select value={fStatus} onValueChange={setFStatus}>
-            <SelectTrigger><SelectValue placeholder="Status" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Status</SelectItem>
-              <SelectItem value="active">Active</SelectItem>
-              <SelectItem value="inactive">Inactive</SelectItem>
-            </SelectContent>
-          </Select>
+          <Combobox
+            value={fDesig}
+            onChange={setFDesig}
+            options={[{ value: "all", label: "All Designations" }, ...DESIGNATIONS.map((d) => ({ value: d, label: d }))]}
+            placeholder="Designation"
+          />
+          <Combobox
+            value={fGroup}
+            onChange={setFGroup}
+            options={[{ value: "all", label: "All Groups" }, ...GROUPS.map((g) => ({ value: g, label: `Group ${g}` }))]}
+            placeholder="Group"
+          />
+          <Combobox
+            value={fStatus}
+            onChange={setFStatus}
+            options={[{ value: "all", label: "All Status" }, { value: "active", label: "Active" }, { value: "inactive", label: "Inactive" }]}
+            placeholder="Status"
+          />
         </CardContent>
       </Card>
 
@@ -137,11 +153,13 @@ function EmployeesPage() {
                         ) : (
                           <>
                             <Button size="sm" variant="ghost" onClick={() => openEdit(e)}><Pencil className="h-4 w-4" /></Button>
-                            <Button size="sm" variant="ghost" onClick={() => {
-                              if (confirm(`Toggle status for ${e.name}?`)) toggleEmployeeStatus(e.id);
+                            <Button size="sm" variant="ghost" onClick={async () => {
+                              const ok = await confirm({ title: `Toggle status for ${e.name}?`, confirmText: "Toggle" });
+                              if (ok) toggleEmployeeStatus(e.id);
                             }}><Power className="h-4 w-4" /></Button>
-                            <Button size="sm" variant="ghost" onClick={() => {
-                              if (confirm(`Archive ${e.name}? (soft delete)`)) { softDeleteEmployee(e.id); toast.success("Archived"); }
+                            <Button size="sm" variant="ghost" onClick={async () => {
+                              const ok = await confirm({ title: `Archive ${e.name}?`, description: "This is a soft delete — the record can be restored later.", confirmText: "Archive", destructive: true });
+                              if (ok) { softDeleteEmployee(e.id); toast.success("Archived"); }
                             }}><Trash2 className="h-4 w-4 text-rose-600" /></Button>
                           </>
                         )}
@@ -166,17 +184,25 @@ function EmployeesPage() {
             <Field label="PF Number *"><Input value={form.pfNumber ?? ""} onChange={(e) => setForm({ ...form, pfNumber: e.target.value })} /></Field>
             <Field label="Token No *"><Input value={form.tokenNo ?? ""} onChange={(e) => setForm({ ...form, tokenNo: e.target.value })} /></Field>
             <Field label="Designation">
-              <Select value={form.designation as string} onValueChange={(v) => setForm({ ...form, designation: v })}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>{DESIGNATIONS.map((d) => <SelectItem key={d} value={d}>{d}</SelectItem>)}</SelectContent>
-              </Select>
+              <Combobox
+                value={form.designation as string}
+                onChange={(v) => setForm({ ...form, designation: v })}
+                options={DESIGNATIONS.map((d) => ({ value: d, label: d }))}
+              />
             </Field>
-            <Field label="Present Batch"><Input value={form.presentBatch ?? ""} onChange={(e) => setForm({ ...form, presentBatch: e.target.value })} /></Field>
+            <Field label="Present Batch">
+              <Combobox
+                value={form.presentBatch as string}
+                onChange={(v) => setForm({ ...form, presentBatch: v })}
+                options={BATCHES.map((b) => ({ value: b, label: b }))}
+              />
+            </Field>
             <Field label="Group Type">
-              <Select value={form.groupType as string} onValueChange={(v) => setForm({ ...form, groupType: v as any })}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>{GROUPS.map((g) => <SelectItem key={g} value={g}>{g}</SelectItem>)}</SelectContent>
-              </Select>
+              <Combobox
+                value={form.groupType as string}
+                onChange={(v) => setForm({ ...form, groupType: v as any })}
+                options={GROUPS.map((g) => ({ value: g, label: `Group ${g}` }))}
+              />
             </Field>
             <Field label="Phone"><Input value={form.phone ?? ""} onChange={(e) => setForm({ ...form, phone: e.target.value })} /></Field>
             <Field label="Address"><Input value={form.address ?? ""} onChange={(e) => setForm({ ...form, address: e.target.value })} /></Field>

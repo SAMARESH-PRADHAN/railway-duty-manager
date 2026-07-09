@@ -34,12 +34,14 @@ export interface Train {
 }
 
 export interface TimeSlot {
-  from: string; // HH:MM
-  to: string;   // HH:MM
+  from: string;
+  to: string;
 }
 
+export type LeaveType = "None" | "CR" | "CL" | "LAP" | "NH" | "PL" | "SCL" | "Sick";
+
 export interface DutyDay {
-  date: string;              // ISO yyyy-mm-dd
+  date: string;
   dayName: string;
   isRestDay: boolean;
   rosteredSlots: TimeSlot[];
@@ -48,23 +50,28 @@ export interface DutyDay {
   actualHours: number;
   extraHours: number;
   description: string;
+  leave?: LeaveType;
 }
 
+/** Kept for back-compat with older stored sheets. */
 export type DeductionType = "none" | "CR" | "CL_LAP_NH_PL_SCL_SICK";
 
 export interface DutySheet {
   id: string;
   employeeId: string;
   trainIds: string[];
+  manualTrainNote?: string;
   periodStartDate: string;
   periodEndDate: string;
   days: DutyDay[];
   totalActualHours: number;
   totalRosteredHours: number;
   statutoryHours: number;
-  deductionType: DeductionType;
+  /** Legacy: kept for old records; new sheets rely on per-day `leave`. */
+  deductionType?: DeductionType;
   deductionHours: number;
   otPayable: number;
+  isDraft?: boolean;
   createdAt: string;
   updatedAt: string;
 }
