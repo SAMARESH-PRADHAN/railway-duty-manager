@@ -88,10 +88,10 @@ function DutyPage() {
     });
   };
 
-  const netActualOf = (d: DutyDay) => Math.round((d.actualHours - leaveDeduction(d.leave)) * 100) / 100;
+  const netActualOf = (d: DutyDay) => Math.max(0, Math.round((d.actualHours - leaveDeduction(d.leave)) * 100) / 100);
 
   const totals = useMemo(() => {
-    const totalActual = Math.round(days.reduce((a, d) => a + d.actualHours - leaveDeduction(d.leave), 0) * 100) / 100;
+    const totalActual = Math.round(days.reduce((a, d) => a + netActualOf(d), 0) * 100) / 100;
     const totalRost = Math.round(days.reduce((a, d) => a + d.rosteredHours, 0) * 100) / 100;
     const ded = totalDeduction(days);
     const ot = Math.round((totalActual - STATUTORY_HOURS) * 100) / 100;
