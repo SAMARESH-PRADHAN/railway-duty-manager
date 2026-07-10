@@ -109,7 +109,8 @@ function DutyPage() {
       const merged = { ...next[idx], ...patch } as DutyDay;
       merged.rosteredHours = patch.rosteredHours !== undefined ? patch.rosteredHours : sumSlots(merged.rosteredSlots);
       merged.actualHours = patch.actualHours !== undefined ? patch.actualHours : sumSlots(merged.actualSlots);
-      merged.extraHours = Math.round((merged.actualHours - merged.rosteredHours) * 100) / 100;
+      const net = Math.round((merged.actualHours - leaveDeduction(merged.leave)) * 100) / 100;
+      merged.extraHours = Math.round((net - merged.rosteredHours) * 100) / 100;
       next[idx] = merged;
       return next;
     });
@@ -121,19 +122,22 @@ function DutyPage() {
   };
 
   const setLeave = (idx: number, leave: LeaveType) => {
-    if (leave === "CR" && bankedRestDays.length > 0) {
-      // Provisionally set the leave; open picker to attribute it
-      updateDay(idx, { leave });
-      setCrPicker({ open: true, dayIndex: idx });
-      return;
+    if (leave === "CR") {
+      // Auto-attribute to the earliest banked rest day not already referenced by another CR row.
+      const used = new Set(
+        days
+          .map((d, k) => (k !== idx && d.leave === "CR" ? (d.description.match(/CR of (\d{2}\.\d{2}\.\d{4})/)?.[1] ?? "") : ""))
+          .filter(Boolean)
+      );
+      const target = bankedRestDays.find((b) => !used.has(fmtDate(b.date)));
+      if (target) {
+        updateDay(idx, { leave, description: `CR of ${fmtDate(target.date)}` });
+        return;
+      }
     }
     updateDay(idx, { leave });
   };
 
-  const attributeCr = (targetIdx: number, bankedDate: string) => {
-    updateDay(targetIdx, { description: `CR of ${fmtDate(bankedDate)}` });
-    setCrPicker({ open: false, dayIndex: null });
-  };
 
   const applyStartDate = (iso: string) => {
     setStartDate(iso);
