@@ -40,7 +40,7 @@ function DutyPage() {
 
   const [sundayModalOpen, setSundayModalOpen] = useState(false);
   const [pendingStart, setPendingStart] = useState<string>("");
-  const [crPicker, setCrPicker] = useState<{ open: boolean; dayIndex: number | null }>({ open: false, dayIndex: null });
+  
   const [unsavedModal, setUnsavedModal] = useState<{ open: boolean; proceed: (() => void) | null }>({ open: false, proceed: null });
 
   const activeEmp = employees.filter((e) => !e.isDeleted && e.status === "active");
@@ -88,8 +88,10 @@ function DutyPage() {
     });
   };
 
+  const netActualOf = (d: DutyDay) => Math.round((d.actualHours - leaveDeduction(d.leave)) * 100) / 100;
+
   const totals = useMemo(() => {
-    const totalActual = Math.round(days.reduce((a, d) => a + d.actualHours, 0) * 100) / 100;
+    const totalActual = Math.round(days.reduce((a, d) => a + d.actualHours - leaveDeduction(d.leave), 0) * 100) / 100;
     const totalRost = Math.round(days.reduce((a, d) => a + d.rosteredHours, 0) * 100) / 100;
     const ded = totalDeduction(days);
     const ot = Math.round((totalActual - STATUTORY_HOURS) * 100) / 100;
@@ -107,7 +109,8 @@ function DutyPage() {
       const merged = { ...next[idx], ...patch } as DutyDay;
       merged.rosteredHours = patch.rosteredHours !== undefined ? patch.rosteredHours : sumSlots(merged.rosteredSlots);
       merged.actualHours = patch.actualHours !== undefined ? patch.actualHours : sumSlots(merged.actualSlots);
-      merged.extraHours = Math.round((merged.actualHours - merged.rosteredHours) * 100) / 100;
+      const net = Math.round((merged.actualHours - leaveDeduction(merged.leave)) * 100) / 100;
+      merged.extraHours = Math.round((net - merged.rosteredHours) * 100) / 100;
       next[idx] = merged;
       return next;
     });
@@ -119,19 +122,22 @@ function DutyPage() {
   };
 
   const setLeave = (idx: number, leave: LeaveType) => {
-    if (leave === "CR" && bankedRestDays.length > 0) {
-      // Provisionally set the leave; open picker to attribute it
-      updateDay(idx, { leave });
-      setCrPicker({ open: true, dayIndex: idx });
-      return;
+    if (leave === "CR") {
+      // Auto-attribute to the earliest banked rest day not already referenced by another CR row.
+      const used = new Set(
+        days
+          .map((d, k) => (k !== idx && d.leave === "CR" ? (d.description.match(/CR of (\d{2}\.\d{2}\.\d{4})/)?.[1] ?? "") : ""))
+          .filter(Boolean)
+      );
+      const target = bankedRestDays.find((b) => !used.has(fmtDate(b.date)));
+      if (target) {
+        updateDay(idx, { leave, description: `CR of ${fmtDate(target.date)}` });
+        return;
+      }
     }
     updateDay(idx, { leave });
   };
 
-  const attributeCr = (targetIdx: number, bankedDate: string) => {
-    updateDay(targetIdx, { description: `CR of ${fmtDate(bankedDate)}` });
-    setCrPicker({ open: false, dayIndex: null });
-  };
 
   const applyStartDate = (iso: string) => {
     setStartDate(iso);
@@ -306,9 +312,9 @@ function DutyPage() {
                     <th className="p-2 border sticky left-0 bg-slate-100 z-10">Day/Date</th>
                     <th className="p-2 border">Rostered Timings</th>
                     <th className="p-2 border w-20">R.Hrs</th>
+                    <th className="p-2 border w-24">Leave</th>
                     <th className="p-2 border">Actual Timings</th>
                     <th className="p-2 border w-20">A.Hrs</th>
-                    <th className="p-2 border w-24">Leave</th>
                     <th className="p-2 border w-20">Extra</th>
                     <th className="p-2 border min-w-[180px]">Description</th>
                   </tr>
@@ -331,13 +337,6 @@ function DutyPage() {
                         <Input className="h-7 text-xs" type="number" step="0.01" value={d.rosteredHours} onChange={(e) => updateDay(i, { rosteredHours: Number(e.target.value) })} />
                       </td>
                       <td className="p-2 border align-top">
-                        <SlotEditor slots={d.actualSlots} onChange={(s) => updateDay(i, { actualSlots: s, actualHours: sumSlots(s) })} />
-                      </td>
-                      <td className="p-2 border align-top">
-                        <Input className="h-7 text-xs" type="number" step="0.01" value={d.actualHours} onChange={(e) => updateDay(i, { actualHours: Number(e.target.value) })} />
-                        {d.actualHours > 16 && <div className="text-[10px] text-amber-700">High</div>}
-                      </td>
-                      <td className="p-2 border align-top">
                         <select
                           className="h-7 text-xs border rounded px-1 w-full bg-white"
                           value={d.leave ?? "None"}
@@ -349,6 +348,20 @@ function DutyPage() {
                           <div className="text-[10px] text-rose-600">-{fmtHours(leaveDeduction(d.leave))}</div>
                         )}
                       </td>
+                      <td className="p-2 border align-top">
+                        <SlotEditor slots={d.actualSlots} onChange={(s) => updateDay(i, { actualSlots: s, actualHours: sumSlots(s) })} />
+                      </td>
+                      <td className="p-2 border align-top">
+                        <Input
+                          className="h-7 text-xs bg-slate-50"
+                          type="number"
+                          step="0.01"
+                          value={netActualOf(d)}
+                          readOnly
+                          title="Actual hours minus leave deduction"
+                        />
+                        {d.actualHours > 16 && <div className="text-[10px] text-amber-700">High</div>}
+                      </td>
                       <td className={`p-2 border align-top font-semibold ${d.extraHours < 0 ? "text-rose-600" : "text-emerald-700"}`}>{fmtHours(d.extraHours)}</td>
                       <td className="p-2 border align-top">
                         <Input className="h-7 text-xs" value={d.description} onChange={(e) => updateDay(i, { description: e.target.value })} placeholder="e.g. OT/OL Vande Bharat…" />
@@ -356,6 +369,7 @@ function DutyPage() {
                     </tr>
                   ))}
                 </tbody>
+
               </table>
             </div>
 
@@ -398,32 +412,8 @@ function DutyPage() {
         </DialogContent>
       </Dialog>
 
-      {/* CR picker */}
-      <Dialog open={crPicker.open} onOpenChange={(o) => { if (!o) setCrPicker({ open: false, dayIndex: null }); }}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Attribute CR to a banked rest day</DialogTitle>
-            <DialogDescription>Select which worked rest day this compensatory rest is offsetting.</DialogDescription>
-          </DialogHeader>
-          <div className="space-y-2 max-h-64 overflow-y-auto">
-            {bankedRestDays.length === 0 && (
-              <div className="text-sm text-slate-500">No banked rest days found in this sheet yet.</div>
-            )}
-            {bankedRestDays.map((d) => (
-              <button
-                key={d.date}
-                className="w-full text-left rounded border p-2 text-sm hover:bg-slate-50"
-                onClick={() => crPicker.dayIndex !== null && attributeCr(crPicker.dayIndex, d.date)}
-              >
-                {d.dayName} — {fmtDate(d.date)} (worked {fmtHours(d.actualHours)})
-              </button>
-            ))}
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setCrPicker({ open: false, dayIndex: null })}>Skip</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+
+
 
       {/* Unsaved changes modal */}
       <Dialog open={unsavedModal.open} onOpenChange={(o) => { if (!o) setUnsavedModal({ open: false, proceed: null }); }}>
@@ -527,8 +517,6 @@ function CopyFromPastDuty({
   days: DutyDay[]; setDays: (d: DutyDay[]) => void; startDate: string;
 }) {
   const [selectedSheet, setSelectedSheet] = useState<string>("");
-  const [selectedDay, setSelectedDay] = useState<string>("");
-  const [targetIdx, setTargetIdx] = useState<string>("");
 
   const past = useMemo(() => {
     return sheets
@@ -537,74 +525,52 @@ function CopyFromPastDuty({
   }, [sheets, employeeId, sheetId]);
 
   const activeSheet = past.find((s) => s.id === selectedSheet);
-  const activeDay = activeSheet?.days.find((d) => d.date === selectedDay);
 
   const applyCopy = () => {
-    if (!activeDay || !targetIdx || days.length === 0) return;
-    const idx = Number(targetIdx);
-    const next = [...days];
-    next[idx] = {
-      ...next[idx],
-      isRestDay: activeDay.isRestDay,
-      rosteredSlots: activeDay.rosteredSlots.map((s) => ({ ...s })),
-      rosteredHours: activeDay.rosteredHours,
-      actualSlots: activeDay.rosteredSlots.map((s) => ({ ...s })),
-      actualHours: activeDay.rosteredHours,
-      extraHours: 0,
-    };
+    if (!activeSheet || days.length === 0) return;
+    const next = days.map((d, i) => {
+      const src = activeSheet.days[i];
+      if (!src) return d;
+      return {
+        ...d,
+        isRestDay: src.isRestDay,
+        rosteredSlots: src.rosteredSlots.map((s) => ({ ...s })),
+        rosteredHours: src.rosteredHours,
+        actualSlots: src.rosteredSlots.map((s) => ({ ...s })),
+        actualHours: src.rosteredHours,
+        extraHours: 0,
+      };
+    });
     setDays(next);
-    toast.success("Roster copied from past duty");
-    setSelectedSheet(""); setSelectedDay(""); setTargetIdx("");
+    toast.success("Roster copied from past duty sheet");
+    setSelectedSheet("");
   };
 
   if (past.length === 0) return null;
 
   return (
     <Card>
-      <CardHeader><CardTitle className="text-base">Copy roster from a past duty day (optional)</CardTitle></CardHeader>
+      <CardHeader><CardTitle className="text-base">Copy roster from a past duty sheet (optional)</CardTitle></CardHeader>
       <CardContent className="space-y-3">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+        <div className="text-xs text-slate-500">
+          Copies the entire 14-day roster (rostered timings) from a past duty sheet into this new period.
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           <div>
             <Label className="text-xs">Past Duty Sheet</Label>
             <Combobox
               value={selectedSheet}
-              onChange={(v) => { setSelectedSheet(v); setSelectedDay(""); }}
+              onChange={setSelectedSheet}
               options={past.map((s) => ({ value: s.id, label: `${fmtDate(s.periodStartDate)} → ${fmtDate(s.periodEndDate)}`, hint: `${s.days.length} days` }))}
               placeholder="Choose past sheet…"
             />
           </div>
-          <div>
-            <Label className="text-xs">Past Day</Label>
-            <Combobox
-              disabled={!activeSheet}
-              value={selectedDay}
-              onChange={setSelectedDay}
-              options={(activeSheet?.days ?? []).map((d) => ({
-                value: d.date,
-                label: `${fmtDate(d.date)} — ${d.dayName.slice(0, 3)}`,
-                hint: d.isRestDay ? "REST" : d.rosteredSlots.map((s) => `${s.from}–${s.to}`).join(" / "),
-              }))}
-              placeholder="Choose past day…"
-            />
-          </div>
-          <div>
-            <Label className="text-xs">Copy onto (new period day)</Label>
-            <Combobox
-              disabled={!startDate || !selectedDay}
-              value={targetIdx}
-              onChange={setTargetIdx}
-              options={days.map((d, i) => ({
-                value: String(i),
-                label: `Day ${i + 1}: ${fmtDate(d.date)} (${d.dayName.slice(0, 3)})`,
-              }))}
-              placeholder="Choose target day…"
-            />
-          </div>
         </div>
         <div className="flex justify-end">
-          <Button disabled={!activeDay || !targetIdx} onClick={applyCopy} className="bg-[#0b2545] hover:bg-[#0b2545]/90">Copy Roster</Button>
+          <Button disabled={!activeSheet || !startDate} onClick={applyCopy} className="bg-[#0b2545] hover:bg-[#0b2545]/90">Copy Full Roster</Button>
         </div>
       </CardContent>
     </Card>
   );
 }
+
