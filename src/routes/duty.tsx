@@ -40,7 +40,7 @@ function DutyPage() {
 
   const [sundayModalOpen, setSundayModalOpen] = useState(false);
   const [pendingStart, setPendingStart] = useState<string>("");
-  const [crPicker, setCrPicker] = useState<{ open: boolean; dayIndex: number | null }>({ open: false, dayIndex: null });
+  
   const [unsavedModal, setUnsavedModal] = useState<{ open: boolean; proceed: (() => void) | null }>({ open: false, proceed: null });
 
   const activeEmp = employees.filter((e) => !e.isDeleted && e.status === "active");
