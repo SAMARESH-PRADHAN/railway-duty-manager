@@ -109,7 +109,7 @@ function DutyPage() {
       const merged = { ...next[idx], ...patch } as DutyDay;
       merged.rosteredHours = patch.rosteredHours !== undefined ? patch.rosteredHours : sumSlots(merged.rosteredSlots);
       merged.actualHours = patch.actualHours !== undefined ? patch.actualHours : sumSlots(merged.actualSlots);
-      const net = Math.round((merged.actualHours - leaveDeduction(merged.leave)) * 100) / 100;
+      const net = Math.max(0, Math.round((merged.actualHours - leaveDeduction(merged.leave)) * 100) / 100);
       merged.extraHours = Math.round((net - merged.rosteredHours) * 100) / 100;
       next[idx] = merged;
       return next;
