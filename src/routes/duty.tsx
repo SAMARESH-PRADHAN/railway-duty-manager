@@ -312,9 +312,9 @@ function DutyPage() {
                     <th className="p-2 border sticky left-0 bg-slate-100 z-10">Day/Date</th>
                     <th className="p-2 border">Rostered Timings</th>
                     <th className="p-2 border w-20">R.Hrs</th>
+                    <th className="p-2 border w-24">Leave</th>
                     <th className="p-2 border">Actual Timings</th>
                     <th className="p-2 border w-20">A.Hrs</th>
-                    <th className="p-2 border w-24">Leave</th>
                     <th className="p-2 border w-20">Extra</th>
                     <th className="p-2 border min-w-[180px]">Description</th>
                   </tr>
@@ -337,13 +337,6 @@ function DutyPage() {
                         <Input className="h-7 text-xs" type="number" step="0.01" value={d.rosteredHours} onChange={(e) => updateDay(i, { rosteredHours: Number(e.target.value) })} />
                       </td>
                       <td className="p-2 border align-top">
-                        <SlotEditor slots={d.actualSlots} onChange={(s) => updateDay(i, { actualSlots: s, actualHours: sumSlots(s) })} />
-                      </td>
-                      <td className="p-2 border align-top">
-                        <Input className="h-7 text-xs" type="number" step="0.01" value={d.actualHours} onChange={(e) => updateDay(i, { actualHours: Number(e.target.value) })} />
-                        {d.actualHours > 16 && <div className="text-[10px] text-amber-700">High</div>}
-                      </td>
-                      <td className="p-2 border align-top">
                         <select
                           className="h-7 text-xs border rounded px-1 w-full bg-white"
                           value={d.leave ?? "None"}
@@ -355,6 +348,20 @@ function DutyPage() {
                           <div className="text-[10px] text-rose-600">-{fmtHours(leaveDeduction(d.leave))}</div>
                         )}
                       </td>
+                      <td className="p-2 border align-top">
+                        <SlotEditor slots={d.actualSlots} onChange={(s) => updateDay(i, { actualSlots: s, actualHours: sumSlots(s) })} />
+                      </td>
+                      <td className="p-2 border align-top">
+                        <Input
+                          className="h-7 text-xs bg-slate-50"
+                          type="number"
+                          step="0.01"
+                          value={netActualOf(d)}
+                          readOnly
+                          title="Actual hours minus leave deduction"
+                        />
+                        {d.actualHours > 16 && <div className="text-[10px] text-amber-700">High</div>}
+                      </td>
                       <td className={`p-2 border align-top font-semibold ${d.extraHours < 0 ? "text-rose-600" : "text-emerald-700"}`}>{fmtHours(d.extraHours)}</td>
                       <td className="p-2 border align-top">
                         <Input className="h-7 text-xs" value={d.description} onChange={(e) => updateDay(i, { description: e.target.value })} placeholder="e.g. OT/OL Vande Bharat…" />
@@ -362,6 +369,7 @@ function DutyPage() {
                     </tr>
                   ))}
                 </tbody>
+
               </table>
             </div>
 
