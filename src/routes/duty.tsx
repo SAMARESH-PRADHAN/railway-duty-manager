@@ -517,8 +517,6 @@ function CopyFromPastDuty({
   days: DutyDay[]; setDays: (d: DutyDay[]) => void; startDate: string;
 }) {
   const [selectedSheet, setSelectedSheet] = useState<string>("");
-  const [selectedDay, setSelectedDay] = useState<string>("");
-  const [targetIdx, setTargetIdx] = useState<string>("");
 
   const past = useMemo(() => {
     return sheets
@@ -527,74 +525,52 @@ function CopyFromPastDuty({
   }, [sheets, employeeId, sheetId]);
 
   const activeSheet = past.find((s) => s.id === selectedSheet);
-  const activeDay = activeSheet?.days.find((d) => d.date === selectedDay);
 
   const applyCopy = () => {
-    if (!activeDay || !targetIdx || days.length === 0) return;
-    const idx = Number(targetIdx);
-    const next = [...days];
-    next[idx] = {
-      ...next[idx],
-      isRestDay: activeDay.isRestDay,
-      rosteredSlots: activeDay.rosteredSlots.map((s) => ({ ...s })),
-      rosteredHours: activeDay.rosteredHours,
-      actualSlots: activeDay.rosteredSlots.map((s) => ({ ...s })),
-      actualHours: activeDay.rosteredHours,
-      extraHours: 0,
-    };
+    if (!activeSheet || days.length === 0) return;
+    const next = days.map((d, i) => {
+      const src = activeSheet.days[i];
+      if (!src) return d;
+      return {
+        ...d,
+        isRestDay: src.isRestDay,
+        rosteredSlots: src.rosteredSlots.map((s) => ({ ...s })),
+        rosteredHours: src.rosteredHours,
+        actualSlots: src.rosteredSlots.map((s) => ({ ...s })),
+        actualHours: src.rosteredHours,
+        extraHours: 0,
+      };
+    });
     setDays(next);
-    toast.success("Roster copied from past duty");
-    setSelectedSheet(""); setSelectedDay(""); setTargetIdx("");
+    toast.success("Roster copied from past duty sheet");
+    setSelectedSheet("");
   };
 
   if (past.length === 0) return null;
 
   return (
     <Card>
-      <CardHeader><CardTitle className="text-base">Copy roster from a past duty day (optional)</CardTitle></CardHeader>
+      <CardHeader><CardTitle className="text-base">Copy roster from a past duty sheet (optional)</CardTitle></CardHeader>
       <CardContent className="space-y-3">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+        <div className="text-xs text-slate-500">
+          Copies the entire 14-day roster (rostered timings) from a past duty sheet into this new period.
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           <div>
             <Label className="text-xs">Past Duty Sheet</Label>
             <Combobox
               value={selectedSheet}
-              onChange={(v) => { setSelectedSheet(v); setSelectedDay(""); }}
+              onChange={setSelectedSheet}
               options={past.map((s) => ({ value: s.id, label: `${fmtDate(s.periodStartDate)} → ${fmtDate(s.periodEndDate)}`, hint: `${s.days.length} days` }))}
               placeholder="Choose past sheet…"
             />
           </div>
-          <div>
-            <Label className="text-xs">Past Day</Label>
-            <Combobox
-              disabled={!activeSheet}
-              value={selectedDay}
-              onChange={setSelectedDay}
-              options={(activeSheet?.days ?? []).map((d) => ({
-                value: d.date,
-                label: `${fmtDate(d.date)} — ${d.dayName.slice(0, 3)}`,
-                hint: d.isRestDay ? "REST" : d.rosteredSlots.map((s) => `${s.from}–${s.to}`).join(" / "),
-              }))}
-              placeholder="Choose past day…"
-            />
-          </div>
-          <div>
-            <Label className="text-xs">Copy onto (new period day)</Label>
-            <Combobox
-              disabled={!startDate || !selectedDay}
-              value={targetIdx}
-              onChange={setTargetIdx}
-              options={days.map((d, i) => ({
-                value: String(i),
-                label: `Day ${i + 1}: ${fmtDate(d.date)} (${d.dayName.slice(0, 3)})`,
-              }))}
-              placeholder="Choose target day…"
-            />
-          </div>
         </div>
         <div className="flex justify-end">
-          <Button disabled={!activeDay || !targetIdx} onClick={applyCopy} className="bg-[#0b2545] hover:bg-[#0b2545]/90">Copy Roster</Button>
+          <Button disabled={!activeSheet || !startDate} onClick={applyCopy} className="bg-[#0b2545] hover:bg-[#0b2545]/90">Copy Full Roster</Button>
         </div>
       </CardContent>
     </Card>
   );
 }
+
