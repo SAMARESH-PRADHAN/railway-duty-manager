@@ -412,32 +412,8 @@ function DutyPage() {
         </DialogContent>
       </Dialog>
 
-      {/* CR picker */}
-      <Dialog open={crPicker.open} onOpenChange={(o) => { if (!o) setCrPicker({ open: false, dayIndex: null }); }}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Attribute CR to a banked rest day</DialogTitle>
-            <DialogDescription>Select which worked rest day this compensatory rest is offsetting.</DialogDescription>
-          </DialogHeader>
-          <div className="space-y-2 max-h-64 overflow-y-auto">
-            {bankedRestDays.length === 0 && (
-              <div className="text-sm text-slate-500">No banked rest days found in this sheet yet.</div>
-            )}
-            {bankedRestDays.map((d) => (
-              <button
-                key={d.date}
-                className="w-full text-left rounded border p-2 text-sm hover:bg-slate-50"
-                onClick={() => crPicker.dayIndex !== null && attributeCr(crPicker.dayIndex, d.date)}
-              >
-                {d.dayName} — {fmtDate(d.date)} (worked {fmtHours(d.actualHours)})
-              </button>
-            ))}
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setCrPicker({ open: false, dayIndex: null })}>Skip</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+
+
 
       {/* Unsaved changes modal */}
       <Dialog open={unsavedModal.open} onOpenChange={(o) => { if (!o) setUnsavedModal({ open: false, proceed: null }); }}>
