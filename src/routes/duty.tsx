@@ -13,7 +13,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Combobox } from "@/components/Combobox";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { useConfirm } from "@/components/ConfirmProvider";
-import { Plus, X, Save, ArrowLeft, ArrowRight, ChevronLeft, FileText } from "lucide-react";
+import { Plus, X, Save, ArrowLeft, ArrowRight, ChevronLeft, FileText, BedDouble } from "lucide-react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/duty")({
