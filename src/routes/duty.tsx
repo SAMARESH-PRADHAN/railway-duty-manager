@@ -198,7 +198,7 @@ function DutyPage() {
             <ChevronLeft className="h-4 w-4 mr-1" /> Back
           </Button>
           <div>
-            <h1 className="text-2xl md:text-3xl font-bold text-[#0b2545]">{existing ? "Edit" : "Generate New"} OT</h1>
+            <h1 className="text-2xl md:text-3xl font-bold text-[#0b2545]">{existing ? "Edit" : "New"} Extra Hour Slip</h1>
             <p className="text-sm text-slate-500">14-day OT calculation</p>
           </div>
         </div>
@@ -213,7 +213,7 @@ function DutyPage() {
               value={employeeId}
               onChange={setEmployeeId}
               placeholder="Choose employee…"
-              options={activeEmp.map((e) => ({ value: e.id, label: `${e.name} — Token ${e.tokenNo}`, hint: `${e.designation} · Group ${e.groupType}` }))}
+              options={activeEmp.map((e) => ({ value: e.id, label: `${e.name} — Token ${e.tokenNo}`, hint: `PF ${e.pfNumber} · ${e.designation} · Group ${e.groupType}` }))}
             />
             {emp && (
               <div className="rounded-lg border bg-slate-50 p-4 grid grid-cols-2 md:grid-cols-5 gap-3 text-sm">
@@ -225,7 +225,7 @@ function DutyPage() {
               </div>
             )}
             <div className="flex justify-end">
-              <Button disabled={!employeeId} onClick={() => setStep(2)} className="bg-[#0b2545] hover:bg-[#0b2545]/90">Next <ArrowRight className="h-4 w-4 ml-1" /></Button>
+              <Button disabled={!employeeId} onClick={() => setStep(2)} className="bg-[#0b2545] hover:bg-[#0b2545]/90">Next: Select Trains <ArrowRight className="h-4 w-4 ml-1" /></Button>
             </div>
           </CardContent>
         </Card>
@@ -259,9 +259,9 @@ function DutyPage() {
                 onChange={(e) => setManualTrainNote(e.target.value)}
               />
             </div>
-            <div className="flex justify-between">
-              <Button variant="outline" onClick={() => setStep(1)}><ArrowLeft className="h-4 w-4 mr-1" /> Back</Button>
-              <Button disabled={trainIds.length === 0 && !manualTrainNote.trim()} onClick={() => setStep(3)} className="bg-[#0b2545] hover:bg-[#0b2545]/90">Next <ArrowRight className="h-4 w-4 ml-1" /></Button>
+            <div className="flex justify-between flex-wrap gap-2">
+              <Button variant="outline" onClick={() => setStep(1)}><ArrowLeft className="h-4 w-4 mr-1" /> Back: Select Employee</Button>
+              <Button disabled={trainIds.length === 0 && !manualTrainNote.trim()} onClick={() => setStep(3)} className="bg-[#0b2545] hover:bg-[#0b2545]/90">Next: Select Date <ArrowRight className="h-4 w-4 ml-1" /></Button>
             </div>
           </CardContent>
         </Card>
@@ -290,11 +290,11 @@ function DutyPage() {
             </CardContent>
           </Card>
 
-          <CopyFromPastDuty employeeId={employeeId} sheets={dutySheets} sheetId={sheetId} days={days} setDays={setDays} startDate={startDate} />
+          <CopyFromPastDuty employeeId={employeeId} empName={emp?.name} sheets={dutySheets} sheetId={sheetId} days={days} setDays={setDays} startDate={startDate} />
 
-          <div className="flex justify-between">
-            <Button variant="outline" onClick={() => setStep(2)}><ArrowLeft className="h-4 w-4 mr-1" /> Back</Button>
-            <Button disabled={!startDate} onClick={() => setStep(4)} className="bg-[#0b2545] hover:bg-[#0b2545]/90">Next <ArrowRight className="h-4 w-4 ml-1" /></Button>
+          <div className="flex justify-between flex-wrap gap-2">
+            <Button variant="outline" onClick={() => setStep(2)}><ArrowLeft className="h-4 w-4 mr-1" /> Back: Select Trains</Button>
+            <Button disabled={!startDate} onClick={() => setStep(4)} className="bg-[#0b2545] hover:bg-[#0b2545]/90">Next: 14-Day Grid <ArrowRight className="h-4 w-4 ml-1" /></Button>
           </div>
         </>
       )}
@@ -310,64 +310,99 @@ function DutyPage() {
                 <thead className="bg-slate-100 text-left">
                   <tr>
                     <th className="p-2 border sticky left-0 bg-slate-100 z-10">Day/Date</th>
-                    <th className="p-2 border">Rostered Timings</th>
+                    <th className="p-2 border min-w-[200px]">Rostered Timings</th>
                     <th className="p-2 border w-20">R.Hrs</th>
-                    <th className="p-2 border w-24">Leave</th>
-                    <th className="p-2 border">Actual Timings</th>
+                    <th className="p-2 border min-w-[220px]">Actual Timings</th>
                     <th className="p-2 border w-20">A.Hrs</th>
                     <th className="p-2 border w-20">Extra</th>
-                    <th className="p-2 border min-w-[180px]">Description</th>
+                    <th className="p-2 border min-w-[200px]">Description</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {days.map((d, i) => (
-                    <tr key={d.date} className={d.isRestDay ? "bg-amber-50" : ""}>
-                      <td className="p-2 border align-top sticky left-0 bg-inherit z-10">
-                        <div className="font-semibold">{d.dayName.slice(0, 3)}</div>
-                        <div className="text-slate-500">{fmtDate(d.date)}</div>
-                        <label className="flex items-center gap-1 mt-1 text-[10px]">
-                          <Checkbox checked={d.isRestDay} onCheckedChange={(v) => updateDay(i, { isRestDay: !!v, rosteredSlots: v ? [] : d.rosteredSlots, rosteredHours: v ? 0 : d.rosteredHours })} />
-                          REST
-                        </label>
-                      </td>
-                      <td className="p-2 border align-top">
-                        <SlotEditor slots={d.rosteredSlots} onChange={(s) => setRosteredSlots(i, s)} />
-                      </td>
-                      <td className="p-2 border align-top">
-                        <Input className="h-7 text-xs" type="number" step="0.01" value={d.rosteredHours} onChange={(e) => updateDay(i, { rosteredHours: Number(e.target.value) })} />
-                      </td>
-                      <td className="p-2 border align-top">
-                        <select
-                          className="h-7 text-xs border rounded px-1 w-full bg-white"
-                          value={d.leave ?? "None"}
-                          onChange={(e) => setLeave(i, e.target.value as LeaveType)}
-                        >
-                          {LEAVE_OPTIONS.map((l) => <option key={l} value={l}>{l}</option>)}
-                        </select>
-                        {leaveDeduction(d.leave) > 0 && (
-                          <div className="text-[10px] text-rose-600">-{fmtHours(leaveDeduction(d.leave))}</div>
-                        )}
-                      </td>
-                      <td className="p-2 border align-top">
-                        <SlotEditor slots={d.actualSlots} onChange={(s) => updateDay(i, { actualSlots: s, actualHours: sumSlots(s) })} />
-                      </td>
-                      <td className="p-2 border align-top">
-                        <Input
-                          className="h-7 text-xs bg-slate-50"
-                          type="number"
-                          step="0.01"
-                          value={netActualOf(d)}
-                          readOnly
-                          title="Actual hours minus leave deduction"
-                        />
-                        {d.actualHours > 16 && <div className="text-[10px] text-amber-700">High</div>}
-                      </td>
-                      <td className={`p-2 border align-top font-semibold ${d.extraHours < 0 ? "text-rose-600" : "text-emerald-700"}`}>{fmtHours(d.extraHours)}</td>
-                      <td className="p-2 border align-top">
-                        <Input className="h-7 text-xs" value={d.description} onChange={(e) => updateDay(i, { description: e.target.value })} placeholder="e.g. OT/OL Vande Bharat…" />
-                      </td>
-                    </tr>
-                  ))}
+                  {days.map((d, i) => {
+                    const parts = d.description.split("\n");
+                    const line1 = parts[0] ?? "";
+                    const line2 = parts.length > 1 ? parts.slice(1).join("\n") : null;
+                    const has2 = line2 !== null;
+                    const toggleRest = () => {
+                      const next = !d.isRestDay;
+                      updateDay(i, {
+                        isRestDay: next,
+                        rosteredSlots: next ? [] : d.rosteredSlots,
+                        rosteredHours: next ? 0 : d.rosteredHours,
+                        actualSlots: next ? [] : d.actualSlots,
+                        actualHours: next ? 0 : d.actualHours,
+                      });
+                    };
+                    return (
+                      <tr key={d.date} className={d.isRestDay ? "bg-amber-50" : ""}>
+                        <td className="p-2 border align-top sticky left-0 bg-inherit z-10">
+                          <div className="font-semibold">{d.dayName.slice(0, 3)}</div>
+                          <div className="text-slate-500 whitespace-nowrap">{fmtDate(d.date)}</div>
+                          {d.isRestDay && <div className="mt-1 text-[10px] font-semibold text-amber-700">REST</div>}
+                        </td>
+                        <td className="p-2 border align-top">
+                          <SlotEditor slots={d.rosteredSlots} onChange={(s) => setRosteredSlots(i, s)} isRest={d.isRestDay} onToggleRest={toggleRest} />
+                        </td>
+                        <td className="p-2 border align-top">
+                          <Input className="h-7 text-xs w-full" type="number" step="0.01" value={d.rosteredHours} onChange={(e) => updateDay(i, { rosteredHours: Number(e.target.value) })} />
+                        </td>
+                        <td className="p-2 border align-top">
+                          <SlotEditor
+                            slots={d.actualSlots}
+                            onChange={(s) => updateDay(i, { actualSlots: s, actualHours: sumSlots(s) })}
+                            isRest={d.isRestDay}
+                            onToggleRest={toggleRest}
+                            leave={d.leave ?? "None"}
+                            onLeaveChange={(v) => setLeave(i, v)}
+                          />
+                          {leaveDeduction(d.leave) > 0 && (
+                            <div className="text-[10px] text-rose-600 mt-1">-{fmtHours(leaveDeduction(d.leave))}</div>
+                          )}
+                        </td>
+                        <td className="p-2 border align-top">
+                          <Input
+                            className="h-7 text-xs w-full"
+                            type="number"
+                            step="0.01"
+                            value={netActualOf(d)}
+                            onChange={(e) => updateDay(i, { actualHours: Number(e.target.value) + leaveDeduction(d.leave) })}
+                            title="Actual hours after leave deduction — editable"
+                          />
+                          {d.actualHours > 16 && <div className="text-[10px] text-amber-700">High</div>}
+                        </td>
+                        <td className={`p-2 border align-top font-semibold ${d.extraHours < 0 ? "text-rose-600" : "text-emerald-700"}`}>{fmtHours(d.extraHours)}</td>
+                        <td className="p-2 border align-top">
+                          <div className="flex items-start gap-1">
+                            <div className="flex-1 min-w-0 space-y-1">
+                              <Input
+                                className="h-7 text-xs"
+                                value={line1}
+                                onChange={(e) => updateDay(i, { description: has2 ? `${e.target.value}\n${line2}` : e.target.value })}
+                                placeholder="Description…"
+                              />
+                              {has2 && (
+                                <Input
+                                  className="h-7 text-xs"
+                                  value={line2 ?? ""}
+                                  onChange={(e) => updateDay(i, { description: `${line1}\n${e.target.value}` })}
+                                  placeholder="Second line…"
+                                />
+                              )}
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => updateDay(i, { description: has2 ? line1 : `${line1}\n` })}
+                              className="shrink-0 mt-0.5 h-7 w-7 grid place-items-center rounded border text-slate-500 hover:bg-slate-100"
+                              title={has2 ? "Remove second line" : "Add second description line"}
+                            >
+                              {has2 ? <X className="h-3 w-3" /> : <Plus className="h-3 w-3" />}
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
 
               </table>
@@ -385,7 +420,7 @@ function DutyPage() {
             </div>
 
             <div className="flex justify-between flex-wrap gap-2">
-              <Button variant="outline" onClick={() => setStep(3)}><ArrowLeft className="h-4 w-4 mr-1" /> Back</Button>
+              <Button variant="outline" onClick={() => setStep(3)}><ArrowLeft className="h-4 w-4 mr-1" /> Back: Select Date</Button>
               <div className="flex gap-2">
                 <Button variant="outline" onClick={() => save(true)}><FileText className="h-4 w-4 mr-1" /> Save as Draft</Button>
                 <Button onClick={() => save(false)} className="bg-emerald-600 hover:bg-emerald-700"><Save className="h-4 w-4 mr-1" /> Save Duty Sheet</Button>
@@ -490,30 +525,57 @@ function StatBox({ label, value, highlight }: { label: string; value: string; hi
   );
 }
 
-function SlotEditor({ slots, onChange }: { slots: TimeSlot[]; onChange: (s: TimeSlot[]) => void }) {
+function SlotEditor({ slots, onChange, isRest, onToggleRest, leave, onLeaveChange }: {
+  slots: TimeSlot[];
+  onChange: (s: TimeSlot[]) => void;
+  isRest?: boolean;
+  onToggleRest?: () => void;
+  leave?: LeaveType;
+  onLeaveChange?: (l: LeaveType) => void;
+}) {
   return (
     <div className="space-y-1">
       {slots.map((s, i) => (
-        <div key={i} className="flex items-center gap-1">
-          <Input type="time" className="h-7 text-xs w-24" value={s.from} onChange={(e) => { const n = [...slots]; n[i] = { ...s, from: e.target.value }; onChange(n); }} />
+        <div key={i} className="flex items-center gap-1 flex-wrap">
+          <Input type="time" className="h-7 text-xs w-[92px]" value={s.from} onChange={(e) => { const n = [...slots]; n[i] = { ...s, from: e.target.value }; onChange(n); }} />
           <span className="text-slate-400">–</span>
-          <Input type="time" className="h-7 text-xs w-24" value={s.to} onChange={(e) => { const n = [...slots]; n[i] = { ...s, to: e.target.value }; onChange(n); }} />
+          <Input type="time" className="h-7 text-xs w-[92px]" value={s.to} onChange={(e) => { const n = [...slots]; n[i] = { ...s, to: e.target.value }; onChange(n); }} />
           <button type="button" onClick={() => onChange(slots.filter((_, k) => k !== i))} className="text-slate-400 hover:text-rose-600"><X className="h-3 w-3" /></button>
         </div>
       ))}
-      {slots.length < 4 && (
-        <button type="button" onClick={() => onChange([...slots, { from: "08:00", to: "16:00" }])} className="text-[10px] text-blue-600 hover:underline flex items-center gap-1">
-          <Plus className="h-3 w-3" /> Add slot
-        </button>
-      )}
+      <div className="flex flex-wrap items-center gap-2 pt-1">
+        {slots.length < 4 && !isRest && (
+          <button type="button" onClick={() => onChange([...slots, { from: "08:00", to: "16:00" }])} className="text-[10px] text-blue-600 hover:underline flex items-center gap-1">
+            <Plus className="h-3 w-3" /> Add slot
+          </button>
+        )}
+        {onToggleRest && (
+          <button
+            type="button"
+            onClick={onToggleRest}
+            className={`text-[10px] flex items-center gap-1 rounded px-1.5 py-0.5 border ${isRest ? "bg-amber-100 border-amber-300 text-amber-800 font-semibold" : "border-slate-200 text-slate-600 hover:bg-slate-100"}`}
+          >
+            <BedDouble className="h-3 w-3" /> {isRest ? "Unrest" : "Rest"}
+          </button>
+        )}
+        {onLeaveChange && (
+          <select
+            className="h-6 text-[10px] border rounded px-1 bg-white"
+            value={leave ?? "None"}
+            onChange={(e) => onLeaveChange(e.target.value as LeaveType)}
+          >
+            {LEAVE_OPTIONS.map((l) => <option key={l} value={l}>{l}</option>)}
+          </select>
+        )}
+      </div>
     </div>
   );
 }
 
 function CopyFromPastDuty({
-  employeeId, sheets, sheetId, days, setDays, startDate,
+  employeeId, empName, sheets, sheetId, days, setDays, startDate,
 }: {
-  employeeId: string; sheets: DutySheet[]; sheetId: string;
+  employeeId: string; empName?: string; sheets: DutySheet[]; sheetId: string;
   days: DutyDay[]; setDays: (d: DutyDay[]) => void; startDate: string;
 }) {
   const [selectedSheet, setSelectedSheet] = useState<string>("");
@@ -525,6 +587,7 @@ function CopyFromPastDuty({
   }, [sheets, employeeId, sheetId]);
 
   const activeSheet = past.find((s) => s.id === selectedSheet);
+  const noHistory = past.length === 0;
 
   const applyCopy = () => {
     if (!activeSheet || days.length === 0) return;
@@ -546,8 +609,6 @@ function CopyFromPastDuty({
     setSelectedSheet("");
   };
 
-  if (past.length === 0) return null;
-
   return (
     <Card>
       <CardHeader><CardTitle className="text-base">Copy roster from a past duty sheet (optional)</CardTitle></CardHeader>
@@ -558,16 +619,22 @@ function CopyFromPastDuty({
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           <div>
             <Label className="text-xs">Past Duty Sheet</Label>
-            <Combobox
-              value={selectedSheet}
-              onChange={setSelectedSheet}
-              options={past.map((s) => ({ value: s.id, label: `${fmtDate(s.periodStartDate)} → ${fmtDate(s.periodEndDate)}`, hint: `${s.days.length} days` }))}
-              placeholder="Choose past sheet…"
-            />
+            {noHistory ? (
+              <div className="h-9 rounded-md border border-rose-200 bg-rose-50 px-3 flex items-center text-xs font-semibold text-rose-700">
+                No history data for this employee{empName ? ` — ${empName}` : ""}
+              </div>
+            ) : (
+              <Combobox
+                value={selectedSheet}
+                onChange={setSelectedSheet}
+                options={past.map((s) => ({ value: s.id, label: `${fmtDate(s.periodStartDate)} → ${fmtDate(s.periodEndDate)}`, hint: `${s.days.length} days` }))}
+                placeholder="Choose past sheet…"
+              />
+            )}
           </div>
         </div>
         <div className="flex justify-end">
-          <Button disabled={!activeSheet || !startDate} onClick={applyCopy} className="bg-[#0b2545] hover:bg-[#0b2545]/90">Copy Full Roster</Button>
+          <Button disabled={noHistory || !activeSheet || !startDate} onClick={applyCopy} className="bg-[#0b2545] hover:bg-[#0b2545]/90">Copy Full Roster</Button>
         </div>
       </CardContent>
     </Card>
