@@ -10,7 +10,7 @@ const nav = [
   { to: "/", label: "Dashboard", icon: LayoutDashboard },
   { to: "/employees", label: "Employees", icon: Users },
   { to: "/trains", label: "Trains", icon: TrainIcon },
-  { to: "/duty", label: "Generate New OT", icon: ClipboardList },
+  { to: "/duty", label: "Extra Hour Slip", icon: ClipboardList },
   { to: "/records", label: "Duty Records", icon: FileText },
   { to: "/reports", label: "Reports", icon: BarChart3 },
 ];
