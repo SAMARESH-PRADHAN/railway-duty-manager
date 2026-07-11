@@ -1,17 +1,18 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
+import * as XLSX from "xlsx";
 import { useData } from "@/context/DataContext";
 import type { Employee } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Combobox } from "@/components/Combobox";
 import { useConfirm } from "@/components/ConfirmProvider";
 import { exportSheet } from "@/lib/excel-export";
-import { Pencil, Trash2, RotateCcw, Plus, Power, Download } from "lucide-react";
+import { Pencil, Trash2, RotateCcw, Plus, Power, Download, Upload, HelpCircle } from "lucide-react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/employees")({ component: EmployeesPage });
@@ -77,6 +78,51 @@ function EmployeesPage() {
     exportSheet(rows, `employees_${hasFilter ? "filtered" : "all"}_${new Date().toISOString().slice(0, 10)}.xlsx`, "Employees");
     toast.success("Excel downloaded");
   };
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [helpOpen, setHelpOpen] = useState(false);
+
+  const handleImportFile = async (file: File) => {
+    try {
+      const buf = await file.arrayBuffer();
+      const wb = XLSX.read(buf, { type: "array" });
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(ws, { defval: "" });
+      if (rows.length === 0) { toast.error("No rows found in file"); return; }
+      const pick = (r: Record<string, unknown>, keys: string[]) => {
+        for (const k of keys) {
+          const found = Object.keys(r).find((x) => x.trim().toLowerCase() === k.toLowerCase());
+          if (found && String(r[found]).trim() !== "") return String(r[found]).trim();
+        }
+        return "";
+      };
+      let added = 0, skipped = 0;
+      for (const r of rows) {
+        const name = pick(r, ["Name", "Employee Name"]);
+        const pfNumber = pick(r, ["PF No", "PF Number", "PF"]);
+        const tokenNo = pick(r, ["Token", "Token No", "Token Number"]);
+        if (!name || !pfNumber || !tokenNo) { skipped++; continue; }
+        const designation = pick(r, ["Designation"]) || "Tech-I";
+        const presentBatch = pick(r, ["Batch", "Present Batch"]) || "A BATCH";
+        const groupRaw = pick(r, ["Group", "Group Type"]) || "A";
+        const groupType = groupRaw.replace(/group\s*/i, "").trim().toUpperCase().slice(0, 1) || "A";
+        addEmployee({
+          name, pfNumber, tokenNo,
+          designation, presentBatch, groupType: groupType as any,
+          phone: pick(r, ["Phone", "Mobile"]),
+          address: pick(r, ["Address"]),
+          dateOfBirth: pick(r, ["Date of Birth", "DOB"]),
+          dateOfJoining: pick(r, ["Date of Joining", "DOJ"]),
+        });
+        added++;
+      }
+      toast.success(`Imported ${added} employee(s)${skipped ? ` · skipped ${skipped}` : ""}`);
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to read the Excel file");
+    } finally {
+      if (fileRef.current) fileRef.current.value = "";
+    }
+  };
 
   return (
     <div className="space-y-4">
@@ -86,9 +132,22 @@ function EmployeesPage() {
           <p className="text-sm text-slate-500">Manage technical staff records</p>
         </div>
         <div className="flex flex-wrap gap-2">
+          <input
+            ref={fileRef}
+            type="file"
+            accept=".xlsx,.xls,.csv"
+            className="hidden"
+            onChange={(e) => { const f = e.target.files?.[0]; if (f) handleImportFile(f); }}
+          />
           <Button variant="outline" onClick={downloadExcel}>
             <Download className="h-4 w-4 mr-1" />
             Download Excel {hasFilter ? "(Filtered)" : "(All)"}
+          </Button>
+          <Button variant="outline" onClick={() => fileRef.current?.click()}>
+            <Upload className="h-4 w-4 mr-1" /> Import Excel
+          </Button>
+          <Button variant="ghost" size="icon" onClick={() => setHelpOpen(true)} title="Import format">
+            <HelpCircle className="h-4 w-4" />
           </Button>
           <Button variant="outline" onClick={() => setShowArchived((s) => !s)}>
             {showArchived ? "Show Active" : "Show Archived"}
@@ -96,6 +155,36 @@ function EmployeesPage() {
           <Button onClick={openAdd} className="bg-[#0b2545] hover:bg-[#0b2545]/90"><Plus className="h-4 w-4 mr-1" /> Add Employee</Button>
         </div>
       </div>
+
+      <Dialog open={helpOpen} onOpenChange={setHelpOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Import Excel — expected format</DialogTitle>
+            <DialogDescription>
+              Upload an <b>.xlsx</b>, <b>.xls</b>, or <b>.csv</b> file with a header row in the first sheet.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="text-sm space-y-2">
+            <div>Recognised columns (header names, case-insensitive):</div>
+            <ul className="list-disc pl-5 text-xs text-slate-700 space-y-0.5">
+              <li><b>Name</b> — required</li>
+              <li><b>PF No</b> (or "PF Number") — required</li>
+              <li><b>Token</b> (or "Token No") — required</li>
+              <li><b>Designation</b> — e.g. Tech-I, Sr.Tech, Helper</li>
+              <li><b>Batch</b> — e.g. A BATCH, VANDE BHARAT</li>
+              <li><b>Group</b> — A / B / C / D / E / F (or "Group A")</li>
+              <li><b>Phone</b>, <b>Address</b>, <b>Date of Birth</b>, <b>Date of Joining</b> — optional</li>
+            </ul>
+            <div className="text-xs text-slate-500">
+              Tip: use the <b>Download Excel</b> button first to get an exact template.
+            </div>
+          </div>
+          <DialogFooter>
+            <Button onClick={() => setHelpOpen(false)} className="bg-[#0b2545] hover:bg-[#0b2545]/90">Got it</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
 
       <Card>
         <CardContent className="p-4 grid grid-cols-1 md:grid-cols-4 gap-3">
