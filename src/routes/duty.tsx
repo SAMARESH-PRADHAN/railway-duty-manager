@@ -326,12 +326,13 @@ function DutyPage() {
                     const has2 = line2 !== null;
                     const toggleRest = () => {
                       const next = !d.isRestDay;
+                      // Rest toggles the ROSTERED rest-day status only. Actual timings
+                      // are preserved so the employee can still log work on a rostered
+                      // rest day (that becomes a "banked" rest day for CR attribution).
                       updateDay(i, {
                         isRestDay: next,
-                        rosteredSlots: next ? [] : d.rosteredSlots,
-                        rosteredHours: next ? 0 : d.rosteredHours,
-                        actualSlots: next ? [] : d.actualSlots,
-                        actualHours: next ? 0 : d.actualHours,
+                        rosteredSlots: next ? [] : (d.rosteredSlots.length ? d.rosteredSlots : [{ from: "08:00", to: "16:00" }]),
+                        rosteredHours: next ? 0 : (d.rosteredSlots.length ? d.rosteredHours : 8),
                       });
                     };
                     return (
