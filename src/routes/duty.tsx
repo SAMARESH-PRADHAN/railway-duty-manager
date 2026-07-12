@@ -545,7 +545,7 @@ function SlotEditor({ slots, onChange, isRest, onToggleRest, leave, onLeaveChang
         </div>
       ))}
       <div className="flex flex-wrap items-center gap-2 pt-1">
-        {slots.length < 4 && !isRest && (
+        {slots.length < 4 && (
           <button type="button" onClick={() => onChange([...slots, { from: "08:00", to: "16:00" }])} className="text-[10px] text-blue-600 hover:underline flex items-center gap-1">
             <Plus className="h-3 w-3" /> Add slot
           </button>
