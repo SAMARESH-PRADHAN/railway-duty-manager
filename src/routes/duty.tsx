@@ -326,12 +326,13 @@ function DutyPage() {
                     const has2 = line2 !== null;
                     const toggleRest = () => {
                       const next = !d.isRestDay;
+                      // Rest toggles the ROSTERED rest-day status only. Actual timings
+                      // are preserved so the employee can still log work on a rostered
+                      // rest day (that becomes a "banked" rest day for CR attribution).
                       updateDay(i, {
                         isRestDay: next,
-                        rosteredSlots: next ? [] : d.rosteredSlots,
-                        rosteredHours: next ? 0 : d.rosteredHours,
-                        actualSlots: next ? [] : d.actualSlots,
-                        actualHours: next ? 0 : d.actualHours,
+                        rosteredSlots: next ? [] : (d.rosteredSlots.length ? d.rosteredSlots : [{ from: "08:00", to: "16:00" }]),
+                        rosteredHours: next ? 0 : (d.rosteredSlots.length ? d.rosteredHours : 8),
                       });
                     };
                     return (
@@ -544,7 +545,7 @@ function SlotEditor({ slots, onChange, isRest, onToggleRest, leave, onLeaveChang
         </div>
       ))}
       <div className="flex flex-wrap items-center gap-2 pt-1">
-        {slots.length < 4 && !isRest && (
+        {slots.length < 4 && (
           <button type="button" onClick={() => onChange([...slots, { from: "08:00", to: "16:00" }])} className="text-[10px] text-blue-600 hover:underline flex items-center gap-1">
             <Plus className="h-3 w-3" /> Add slot
           </button>
