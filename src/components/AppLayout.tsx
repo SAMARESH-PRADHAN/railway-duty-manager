@@ -30,9 +30,17 @@ export function AppLayout({ children }: { children: ReactNode }) {
           <TrainIcon className="h-5 w-5" />
           <span className="font-semibold">OTA Manager</span>
         </div>
-        <button onClick={() => setOpen((o) => !o)} aria-label="Toggle menu">
-          {open ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
-        </button>
+        <div className="flex items-center gap-2">
+          <ThemeToggle />
+          <button onClick={() => setOpen((o) => !o)} aria-label="Toggle menu">
+            {open ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
+          </button>
+        </div>
+      </div>
+
+      {/* Desktop floating theme toggle */}
+      <div className="hidden md:block fixed top-3 right-4 z-40">
+        <ThemeToggle className="bg-[#0b2545] border-[#0b2545]/40 hover:bg-[#0b2545]/90" />
       </div>
 
       <div className="flex">
