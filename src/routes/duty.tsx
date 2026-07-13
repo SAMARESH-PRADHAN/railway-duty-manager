@@ -88,7 +88,11 @@ function DutyPage() {
     });
   };
 
-  const netActualOf = (d: DutyDay) => Math.max(0, Math.round((d.actualHours - leaveDeduction(d.leave)) * 100) / 100);
+  // Leave semantics:
+  // - CR: rostered hours ignored for OT loss; actual defaults to 0 (user may enter worked hours if any).
+  // - Other paid leaves (CL/LAP/NH/PL/SCL/Sick): actual defaults to 7 hours (representing paid leave credit).
+  // No implicit deduction is subtracted — actual hours as shown IS the value used for OT.
+  const netActualOf = (d: DutyDay) => Math.max(0, Math.round(d.actualHours * 100) / 100);
 
   const totals = useMemo(() => {
     const totalActual = Math.round(days.reduce((a, d) => a + netActualOf(d), 0) * 100) / 100;
@@ -109,7 +113,7 @@ function DutyPage() {
       const merged = { ...next[idx], ...patch } as DutyDay;
       merged.rosteredHours = patch.rosteredHours !== undefined ? patch.rosteredHours : sumSlots(merged.rosteredSlots);
       merged.actualHours = patch.actualHours !== undefined ? patch.actualHours : sumSlots(merged.actualSlots);
-      const net = Math.max(0, Math.round((merged.actualHours - leaveDeduction(merged.leave)) * 100) / 100);
+      const net = Math.max(0, Math.round(merged.actualHours * 100) / 100);
       merged.extraHours = Math.round((net - merged.rosteredHours) * 100) / 100;
       next[idx] = merged;
       return next;
@@ -122,8 +126,16 @@ function DutyPage() {
   };
 
   const setLeave = (idx: number, leave: LeaveType) => {
+    // Apply leave-specific default for actual hours.
+    let actualPatch: Partial<DutyDay> = {};
     if (leave === "CR") {
-      // Auto-attribute to the earliest banked rest day not already referenced by another CR row.
+      actualPatch = { actualSlots: [], actualHours: 0 };
+    } else if (leave && leave !== "None") {
+      // Other paid leaves default to 7 actual hours (no slots).
+      actualPatch = { actualSlots: [], actualHours: 7 };
+    }
+
+    if (leave === "CR") {
       const used = new Set(
         days
           .map((d, k) => (k !== idx && d.leave === "CR" ? (d.description.match(/CR of (\d{2}\.\d{2}\.\d{4})/)?.[1] ?? "") : ""))
@@ -131,11 +143,11 @@ function DutyPage() {
       );
       const target = bankedRestDays.find((b) => !used.has(fmtDate(b.date)));
       if (target) {
-        updateDay(idx, { leave, description: `CR of ${fmtDate(target.date)}` });
+        updateDay(idx, { leave, description: `CR of ${fmtDate(target.date)}`, ...actualPatch });
         return;
       }
     }
-    updateDay(idx, { leave });
+    updateDay(idx, { leave, ...actualPatch });
   };
 
 
