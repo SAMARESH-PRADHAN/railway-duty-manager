@@ -648,7 +648,7 @@ function CopyFromPastDuty({
           </div>
         </div>
         <div className="flex justify-end">
-          <Button disabled={noHistory || !activeSheet || !startDate} onClick={applyCopy} className="bg-[#0b2545] hover:bg-[#0b2545]/90">Copy Full Roster</Button>
+          <Button disabled={noHistory || !activeSheet || !startDate} onClick={applyCopy} className="bg-[#0b2545] hover:bg-[#0b2545]/90">Copy and Next <ArrowRight className="h-4 w-4 ml-1" /></Button>
         </div>
       </CardContent>
     </Card>
