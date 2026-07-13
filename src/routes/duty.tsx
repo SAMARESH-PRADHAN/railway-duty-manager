@@ -620,6 +620,7 @@ function CopyFromPastDuty({
     setDays(next);
     toast.success("Roster copied from past duty sheet");
     setSelectedSheet("");
+    onDone?.();
   };
 
   return (
