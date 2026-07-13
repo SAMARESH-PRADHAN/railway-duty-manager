@@ -586,10 +586,10 @@ function SlotEditor({ slots, onChange, isRest, onToggleRest, leave, onLeaveChang
 }
 
 function CopyFromPastDuty({
-  employeeId, empName, sheets, sheetId, days, setDays, startDate,
+  employeeId, empName, sheets, sheetId, days, setDays, startDate, onDone,
 }: {
   employeeId: string; empName?: string; sheets: DutySheet[]; sheetId: string;
-  days: DutyDay[]; setDays: (d: DutyDay[]) => void; startDate: string;
+  days: DutyDay[]; setDays: (d: DutyDay[]) => void; startDate: string; onDone?: () => void;
 }) {
   const [selectedSheet, setSelectedSheet] = useState<string>("");
 
