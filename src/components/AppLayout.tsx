@@ -1,11 +1,10 @@
 import { Link, useRouterState } from "@tanstack/react-router";
 import { LayoutDashboard, Users, Train as TrainIcon, ClipboardList, FileText, BarChart3, Menu, X, RefreshCw } from "lucide-react";
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { useData } from "@/context/DataContext";
 import { Button } from "@/components/ui/button";
 import { useConfirm } from "@/components/ConfirmProvider";
 import { toast } from "sonner";
-import { ThemeToggle } from "@/components/ThemeToggle";
 
 const nav = [
   { to: "/", label: "Dashboard", icon: LayoutDashboard },
@@ -22,6 +21,11 @@ export function AppLayout({ children }: { children: ReactNode }) {
   const confirm = useConfirm();
   const { location } = useRouterState();
 
+  useEffect(() => {
+    document.documentElement.classList.remove("dark");
+    try { localStorage.removeItem("ota:theme"); } catch { /* ignore */ }
+  }, []);
+
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900">
       {/* Mobile top bar */}
@@ -30,17 +34,9 @@ export function AppLayout({ children }: { children: ReactNode }) {
           <TrainIcon className="h-5 w-5" />
           <span className="font-semibold">OTA Manager</span>
         </div>
-        <div className="flex items-center gap-2">
-          <ThemeToggle />
-          <button onClick={() => setOpen((o) => !o)} aria-label="Toggle menu">
-            {open ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
-          </button>
-        </div>
-      </div>
-
-      {/* Desktop floating theme toggle */}
-      <div className="hidden md:block fixed top-3 right-4 z-40">
-        <ThemeToggle className="bg-[#0b2545] border-[#0b2545]/40 hover:bg-[#0b2545]/90" />
+        <button onClick={() => setOpen((o) => !o)} aria-label="Toggle menu">
+          {open ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
+        </button>
       </div>
 
       <div className="flex">
