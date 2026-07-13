@@ -369,8 +369,8 @@ function DutyPage() {
                             leave={d.leave ?? "None"}
                             onLeaveChange={(v) => setLeave(i, v)}
                           />
-                          {leaveDeduction(d.leave) > 0 && (
-                            <div className="text-[10px] text-rose-600 mt-1">-{fmtHours(leaveDeduction(d.leave))}</div>
+                          {d.leave && d.leave !== "None" && (
+                            <div className="text-[10px] text-slate-500 mt-1">Leave: {d.leave}</div>
                           )}
                         </td>
                         <td className="p-2 border align-top">
@@ -379,8 +379,8 @@ function DutyPage() {
                             type="number"
                             step="0.01"
                             value={netActualOf(d)}
-                            onChange={(e) => updateDay(i, { actualHours: Number(e.target.value) + leaveDeduction(d.leave) })}
-                            title="Actual hours after leave deduction — editable"
+                            onChange={(e) => updateDay(i, { actualHours: Number(e.target.value) })}
+                            title="Actual hours — editable"
                           />
                           {d.actualHours > 16 && <div className="text-[10px] text-amber-700">High</div>}
                         </td>
