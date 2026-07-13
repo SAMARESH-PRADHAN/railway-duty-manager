@@ -21,6 +21,11 @@ export function AppLayout({ children }: { children: ReactNode }) {
   const confirm = useConfirm();
   const { location } = useRouterState();
 
+  useEffect(() => {
+    document.documentElement.classList.remove("dark");
+    try { localStorage.removeItem("ota:theme"); } catch { /* ignore */ }
+  }, []);
+
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900">
       {/* Mobile top bar */}
