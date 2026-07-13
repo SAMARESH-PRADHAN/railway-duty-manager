@@ -5,6 +5,7 @@ import { useData } from "@/context/DataContext";
 import { Button } from "@/components/ui/button";
 import { useConfirm } from "@/components/ConfirmProvider";
 import { toast } from "sonner";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 const nav = [
   { to: "/", label: "Dashboard", icon: LayoutDashboard },
