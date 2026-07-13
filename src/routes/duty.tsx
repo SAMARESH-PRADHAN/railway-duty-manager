@@ -302,7 +302,7 @@ function DutyPage() {
             </CardContent>
           </Card>
 
-          <CopyFromPastDuty employeeId={employeeId} empName={emp?.name} sheets={dutySheets} sheetId={sheetId} days={days} setDays={setDays} startDate={startDate} />
+          <CopyFromPastDuty employeeId={employeeId} empName={emp?.name} sheets={dutySheets} sheetId={sheetId} days={days} setDays={setDays} startDate={startDate} onDone={() => setStep(4)} />
 
           <div className="flex justify-between flex-wrap gap-2">
             <Button variant="outline" onClick={() => setStep(2)}><ArrowLeft className="h-4 w-4 mr-1" /> Back: Select Trains</Button>
