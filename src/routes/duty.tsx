@@ -568,7 +568,7 @@ function SlotEditor({ slots, onChange, isRest, onToggleRest, leave, onLeaveChang
             onClick={onToggleRest}
             className={`text-[10px] flex items-center gap-1 rounded px-1.5 py-0.5 border ${isRest ? "bg-amber-100 border-amber-300 text-amber-800 font-semibold" : "border-slate-200 text-slate-600 hover:bg-slate-100"}`}
           >
-            <BedDouble className="h-3 w-3" /> {isRest ? "Unrest" : "Rest"}
+            <BedDouble className="h-3 w-3" /> {isRest ? "NoRest" : "Rest"}
           </button>
         )}
         {onLeaveChange && (
