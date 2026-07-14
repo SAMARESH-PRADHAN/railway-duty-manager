@@ -1,12 +1,11 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { Link } from "react-router-dom";
 import { useData } from "@/context/DataContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Users, Train as TrainIcon, ClipboardList, Clock } from "lucide-react";
 import { fmtDate, fmtHours } from "@/lib/ot-utils";
 
-export const Route = createFileRoute("/")({ component: Dashboard });
+export default function Dashboard() {
 
-function Dashboard() {
   const { employees, trains, dutySheets } = useData();
   const activeEmp = employees.filter((e) => !e.isDeleted && e.status === "active").length;
   const activeTrn = trains.filter((t) => !t.isDeleted && t.status === "active").length;
@@ -61,7 +60,7 @@ function Dashboard() {
           {recent.length === 0 ? (
             <div className="text-sm text-slate-500 py-6 text-center">
               No duty sheets yet.{" "}
-              <Link to="/duty" search={{ id: undefined }} className="text-blue-600 hover:underline">Extra Hour Slip</Link>.
+              <Link to="/duty" className="text-blue-600 hover:underline">Extra Hour Slip</Link>.
             </div>
           ) : (
             <div className="overflow-x-auto">

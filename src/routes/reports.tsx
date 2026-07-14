@@ -1,4 +1,3 @@
-import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useData } from "@/context/DataContext";
 import { Button } from "@/components/ui/button";
@@ -12,11 +11,10 @@ import { fmtDate, fmtHours, periodsOverlap } from "@/lib/ot-utils";
 import { exportReportPdf, type ReportRow } from "@/lib/pdf-export";
 import { format } from "date-fns";
 
-export const Route = createFileRoute("/reports")({ component: ReportsPage });
 
 const GROUPS = ["A", "B", "C", "D", "E", "F"];
 
-function ReportsPage() {
+export default function ReportsPage() {
   const { employees, trains, dutySheets } = useData();
   const [train, setTrain] = useState<string>("all");
   const [group, setGroup] = useState<string>("all");

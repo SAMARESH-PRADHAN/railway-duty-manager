@@ -1,4 +1,4 @@
-import { Link, useRouterState } from "@tanstack/react-router";
+import { Link, useLocation } from "react-router-dom";
 import { LayoutDashboard, Users, Train as TrainIcon, ClipboardList, FileText, BarChart3, Menu, X, RefreshCw } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
 import { useData } from "@/context/DataContext";
@@ -19,7 +19,7 @@ export function AppLayout({ children }: { children: ReactNode }) {
   const [open, setOpen] = useState(false);
   const { resetDemo } = useData();
   const confirm = useConfirm();
-  const { location } = useRouterState();
+  const location = useLocation();
 
   useEffect(() => {
     document.documentElement.classList.remove("dark");

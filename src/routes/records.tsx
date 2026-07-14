@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { Link } from "react-router-dom";
 import { useMemo, useState } from "react";
 import { useData } from "@/context/DataContext";
 import { Button } from "@/components/ui/button";
@@ -12,9 +12,8 @@ import { exportOtSlipPdf } from "@/lib/pdf-export";
 import { useConfirm } from "@/components/ConfirmProvider";
 import { toast } from "sonner";
 
-export const Route = createFileRoute("/records")({ component: RecordsPage });
 
-function RecordsPage() {
+export default function RecordsPage() {
   const { dutySheets, employees, trains, deleteDutySheet } = useData();
   const confirm = useConfirm();
   const [emp, setEmp] = useState<string>("all");
@@ -37,7 +36,7 @@ function RecordsPage() {
           <h1 className="text-2xl md:text-3xl font-bold text-[#0b2545]">Duty Records</h1>
           <p className="text-sm text-slate-500">All saved 14-day duty sheets</p>
         </div>
-        <Link to="/duty" search={{ id: undefined }}><Button className="bg-[#0b2545] hover:bg-[#0b2545]/90">+ Extra Hour Slip</Button></Link>
+        <Link to="/duty"><Button className="bg-[#0b2545] hover:bg-[#0b2545]/90">+ Extra Hour Slip</Button></Link>
       </div>
 
       <Card><CardContent className="p-4 grid grid-cols-1 md:grid-cols-4 gap-3">
@@ -104,7 +103,7 @@ function RecordsPage() {
                           exportOtSlipPdf(s, e, sheetTrains);
                           toast.success("PDF exported");
                         }}><FileDown className="h-4 w-4" /></Button>
-                        <Link to="/duty" search={{ id: s.id }}>
+                        <Link to={`/duty?id=${s.id}`}>
                           <Button size="sm" variant="ghost"><Pencil className="h-4 w-4" /></Button>
                         </Link>
                         <Button size="sm" variant="ghost" onClick={async () => {
