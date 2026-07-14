@@ -49,20 +49,9 @@ export default function DutyPage() {
     setDirty(true);
   }, [employeeId, trainIds, manualTrainNote, startDate, days]);
 
-  // Block cross-route navigation while dirty; show custom modal.
-  const blocker = useBlocker(({ currentLocation, nextLocation }) => {
-    if (!dirty) return false;
-    if (nextLocation.pathname === currentLocation.pathname) return false;
-    return true;
-  });
-  useEffect(() => {
-    if (blocker.state === "blocked") {
-      setUnsavedModal({
-        open: true,
-        proceed: () => blocker.proceed?.(),
-      });
-    }
-  }, [blocker]);
+  // Note: cross-route navigation blocking requires a data router; skipped in this build.
+  const blocker = { state: "unblocked" as const, proceed: undefined as undefined | (() => void), reset: undefined as undefined | (() => void) };
+  void blocker;
   useEffect(() => {
     const beforeUnload = (e: BeforeUnloadEvent) => {
       if (dirty) { e.preventDefault(); e.returnValue = ""; }
