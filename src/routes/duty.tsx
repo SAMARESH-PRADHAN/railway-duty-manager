@@ -31,6 +31,9 @@ export default function DutyPage() {
   const [manualTrainNote, setManualTrainNote] = useState<string>(existing?.manualTrainNote ?? "");
   const [startDate, setStartDate] = useState<string>(existing?.periodStartDate ?? "");
   const [days, setDays] = useState<DutyDay[]>(existing?.days ?? []);
+  const [history, setHistory] = useState<DutyDay[][]>(existing?.days ? [existing.days] : []);
+  const [historyIdx, setHistoryIdx] = useState<number>(existing?.days ? 0 : -1);
+  const skipHistoryRef = useRef(false);
   const [sheetId] = useState<string>(existing?.id ?? uuid());
   const [dirty, setDirty] = useState(false);
   const initialLoad = useRef(true);
