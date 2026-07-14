@@ -44,6 +44,8 @@ export interface DutyDay {
   date: string;
   dayName: string;
   isRestDay: boolean;
+  /** Independent rest flag for the ACTUAL timings column. */
+  actualIsRest?: boolean;
   rosteredSlots: TimeSlot[];
   rosteredHours: number;
   actualSlots: TimeSlot[];

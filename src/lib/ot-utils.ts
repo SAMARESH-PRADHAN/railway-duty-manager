@@ -29,6 +29,7 @@ export function generate14Days(startISO: string): DutyDay[] {
       date: format(d, "yyyy-MM-dd"),
       dayName,
       isRestDay: isRest,
+      actualIsRest: isRest,
       rosteredSlots: isRest ? [] : [{ from: "08:00", to: "16:00" }],
       rosteredHours: isRest ? 0 : 8,
       actualSlots: isRest ? [] : [{ from: "08:00", to: "16:00" }],

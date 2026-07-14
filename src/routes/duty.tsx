@@ -98,7 +98,7 @@ export default function DutyPage() {
   }, [days]);
 
   const bankedRestDays = useMemo(
-    () => days.filter((d) => d.isRestDay && d.actualHours > 0),
+    () => days.filter((d) => d.isRestDay && !d.actualIsRest && (d.actualHours - ((d.leave && d.leave !== "None" && d.leave !== "CR") ? 7 : 0)) > 0),
     [days],
   );
 
@@ -115,34 +115,39 @@ export default function DutyPage() {
     });
   };
 
-  // When user changes rostered slots, auto-copy into actual (as sensible default).
+  // Rostered slot edits only affect the rostered column (not actual).
   const setRosteredSlots = (idx: number, slots: TimeSlot[]) => {
-    updateDay(idx, { rosteredSlots: slots, rosteredHours: sumSlots(slots), actualSlots: slots.map((s) => ({ ...s })), actualHours: sumSlots(slots) });
+    updateDay(idx, { rosteredSlots: slots, rosteredHours: sumSlots(slots) });
   };
 
+  // Hours credited by a leave (added on top of any actually-worked hours).
+  const leaveHoursCredit = (l?: LeaveType) => (l && l !== "None" && l !== "CR" ? 7 : 0);
+
   const setLeave = (idx: number, leave: LeaveType) => {
-    // Apply leave-specific default for actual hours.
-    let actualPatch: Partial<DutyDay> = {};
-    if (leave === "CR") {
-      actualPatch = { actualSlots: [], actualHours: 0 };
-    } else if (leave && leave !== "None") {
-      // Other paid leaves default to 7 actual hours (no slots).
-      actualPatch = { actualSlots: [], actualHours: 7 };
-    }
+    const d = days[idx];
+    const prevCredit = leaveHoursCredit(d.leave);
+    const newCredit = leaveHoursCredit(leave);
+    const newActualHours = Math.max(
+      0,
+      Math.round((d.actualHours - prevCredit + newCredit) * 100) / 100,
+    );
+    const patch: Partial<DutyDay> = { leave, actualHours: newActualHours };
 
     if (leave === "CR") {
       const used = new Set(
         days
-          .map((d, k) => (k !== idx && d.leave === "CR" ? (d.description.match(/CR of (\d{2}\.\d{2}\.\d{4})/)?.[1] ?? "") : ""))
+          .map((dd, k) => (k !== idx && dd.leave === "CR" ? (dd.description.match(/CR of (\d{2}\.\d{2}\.\d{4})/)?.[1] ?? "") : ""))
           .filter(Boolean)
       );
       const target = bankedRestDays.find((b) => !used.has(fmtDate(b.date)));
       if (target) {
-        updateDay(idx, { leave, description: `CR of ${fmtDate(target.date)}`, ...actualPatch });
-        return;
+        const note = `CR of ${fmtDate(target.date)}`;
+        if (!d.description.includes(note)) {
+          patch.description = d.description ? `${d.description}\n${note}` : note;
+        }
       }
     }
-    updateDay(idx, { leave, ...actualPatch });
+    updateDay(idx, patch);
   };
 
 
@@ -331,26 +336,34 @@ export default function DutyPage() {
                     const line1 = parts[0] ?? "";
                     const line2 = parts.length > 1 ? parts.slice(1).join("\n") : null;
                     const has2 = line2 !== null;
-                    const toggleRest = () => {
+                    const toggleRosteredRest = () => {
                       const next = !d.isRestDay;
-                      // Rest toggles the ROSTERED rest-day status only. Actual timings
-                      // are preserved so the employee can still log work on a rostered
-                      // rest day (that becomes a "banked" rest day for CR attribution).
+                      // Rostered rest toggle: only affects rostered slots + R.Hrs.
                       updateDay(i, {
                         isRestDay: next,
                         rosteredSlots: next ? [] : (d.rosteredSlots.length ? d.rosteredSlots : [{ from: "08:00", to: "16:00" }]),
                         rosteredHours: next ? 0 : (d.rosteredSlots.length ? d.rosteredHours : 8),
                       });
                     };
+                    const toggleActualRest = () => {
+                      const next = !d.actualIsRest;
+                      // Actual rest toggle: only affects actual slots + A.Hrs.
+                      updateDay(i, {
+                        actualIsRest: next,
+                        actualSlots: next ? [] : (d.actualSlots.length ? d.actualSlots : [{ from: "08:00", to: "16:00" }]),
+                        actualHours: next ? 0 : (d.actualSlots.length ? d.actualHours : 8),
+                      });
+                    };
+                    const bothRest = d.isRestDay && (d.actualIsRest ?? false);
                     return (
-                      <tr key={d.date} className={d.isRestDay ? "bg-amber-50" : ""}>
+                      <tr key={d.date} className={bothRest ? "bg-amber-50" : ""}>
                         <td className="p-2 border align-top sticky left-0 bg-inherit z-10">
                           <div className="font-semibold">{d.dayName.slice(0, 3)}</div>
                           <div className="text-slate-500 whitespace-nowrap">{fmtDate(d.date)}</div>
-                          {d.isRestDay && <div className="mt-1 text-[10px] font-semibold text-amber-700">REST</div>}
+                          {bothRest && <div className="mt-1 text-[10px] font-semibold text-amber-700">REST</div>}
                         </td>
                         <td className="p-2 border align-top">
-                          <SlotEditor slots={d.rosteredSlots} onChange={(s) => setRosteredSlots(i, s)} isRest={d.isRestDay} onToggleRest={toggleRest} />
+                          <SlotEditor slots={d.rosteredSlots} onChange={(s) => setRosteredSlots(i, s)} isRest={d.isRestDay} onToggleRest={toggleRosteredRest} />
                         </td>
                         <td className="p-2 border align-top">
                           <Input className="h-7 text-xs w-full" type="number" step="0.01" value={d.rosteredHours} onChange={(e) => updateDay(i, { rosteredHours: Number(e.target.value) })} />
@@ -358,9 +371,9 @@ export default function DutyPage() {
                         <td className="p-2 border align-top">
                           <SlotEditor
                             slots={d.actualSlots}
-                            onChange={(s) => updateDay(i, { actualSlots: s, actualHours: sumSlots(s) })}
-                            isRest={d.isRestDay}
-                            onToggleRest={toggleRest}
+                            onChange={(s) => updateDay(i, { actualSlots: s, actualHours: sumSlots(s) + leaveHoursCredit(d.leave) })}
+                            isRest={d.actualIsRest}
+                            onToggleRest={toggleActualRest}
                             leave={d.leave ?? "None"}
                             onLeaveChange={(v) => setLeave(i, v)}
                           />
