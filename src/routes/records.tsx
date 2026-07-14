@@ -1,3 +1,4 @@
+import { Link } from "react-router-dom";
 import { useMemo, useState } from "react";
 import { useData } from "@/context/DataContext";
 import { Button } from "@/components/ui/button";
@@ -102,7 +103,7 @@ export default function RecordsPage() {
                           exportOtSlipPdf(s, e, sheetTrains);
                           toast.success("PDF exported");
                         }}><FileDown className="h-4 w-4" /></Button>
-                        <Link to="/duty" search={{ id: s.id }}>
+                        <Link to={`/duty?id=${s.id}`}>
                           <Button size="sm" variant="ghost"><Pencil className="h-4 w-4" /></Button>
                         </Link>
                         <Button size="sm" variant="ghost" onClick={async () => {
