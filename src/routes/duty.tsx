@@ -63,6 +63,55 @@ export default function DutyPage() {
     return () => window.removeEventListener("beforeunload", beforeUnload);
   }, [dirty]);
 
+  // History: snapshot `days` on every change except undo/redo replays.
+  useEffect(() => {
+    if (days.length === 0) return;
+    if (skipHistoryRef.current) { skipHistoryRef.current = false; return; }
+    setHistory((prev) => {
+      const base = prev.slice(0, historyIdx + 1);
+      const last = base[base.length - 1];
+      if (last && JSON.stringify(last) === JSON.stringify(days)) return prev;
+      const next = [...base, days];
+      // Cap history size.
+      const capped = next.length > 50 ? next.slice(next.length - 50) : next;
+      setHistoryIdx(capped.length - 1);
+      return capped;
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [days]);
+
+  const undo = () => {
+    if (historyIdx <= 0) return;
+    const nextIdx = historyIdx - 1;
+    skipHistoryRef.current = true;
+    setDays(history[nextIdx]);
+    setHistoryIdx(nextIdx);
+  };
+  const redo = () => {
+    if (historyIdx >= history.length - 1) return;
+    const nextIdx = historyIdx + 1;
+    skipHistoryRef.current = true;
+    setDays(history[nextIdx]);
+    setHistoryIdx(nextIdx);
+  };
+  const canUndo = historyIdx > 0;
+  const canRedo = historyIdx < history.length - 1;
+
+  // Keyboard shortcuts: Ctrl/Cmd+Z, Ctrl/Cmd+Shift+Z or Ctrl+Y.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (step !== 4) return;
+      const mod = e.ctrlKey || e.metaKey;
+      if (!mod) return;
+      const k = e.key.toLowerCase();
+      if (k === "z" && !e.shiftKey) { e.preventDefault(); undo(); }
+      else if ((k === "z" && e.shiftKey) || k === "y") { e.preventDefault(); redo(); }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  });
+
+
 
 
   const endDate = useMemo(() => startDate ? format(addDays(parseISO(startDate), 13), "yyyy-MM-dd") : "", [startDate]);
