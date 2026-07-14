@@ -4,10 +4,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Users, Train as TrainIcon, ClipboardList, Clock } from "lucide-react";
 import { fmtDate, fmtHours } from "@/lib/ot-utils";
 
-export default function Dashboard() { return <DashboardInner />; }
+export default function Dashboard() {
 
-
-function Dashboard() {
   const { employees, trains, dutySheets } = useData();
   const activeEmp = employees.filter((e) => !e.isDeleted && e.status === "active").length;
   const activeTrn = trains.filter((t) => !t.isDeleted && t.status === "active").length;
