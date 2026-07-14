@@ -366,7 +366,17 @@ export default function DutyPage() {
       {step === 4 && (
         <Card><CardHeader className="flex flex-row items-center justify-between flex-wrap gap-2">
           <CardTitle className="text-base">Step 4 — 14-Day Grid</CardTitle>
-          <div className="text-xs text-slate-500">Employee: <b>{emp?.name}</b> · Period: <b>{fmtDate(startDate)} – {fmtDate(endDate)}</b></div>
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-1">
+              <Button variant="outline" size="sm" onClick={undo} disabled={!canUndo} title="Undo (Ctrl+Z)" className="h-8 px-2">
+                <Undo2 className="h-4 w-4" />
+              </Button>
+              <Button variant="outline" size="sm" onClick={redo} disabled={!canRedo} title="Redo (Ctrl+Shift+Z)" className="h-8 px-2">
+                <Redo2 className="h-4 w-4" />
+              </Button>
+            </div>
+            <div className="text-xs text-slate-500">Employee: <b>{emp?.name}</b> · Period: <b>{fmtDate(startDate)} – {fmtDate(endDate)}</b></div>
+          </div>
         </CardHeader>
           <CardContent className="space-y-4">
             <div className="overflow-x-auto -mx-6 px-6">
