@@ -19,7 +19,7 @@ export function AppLayout({ children }: { children: ReactNode }) {
   const [open, setOpen] = useState(false);
   const { resetDemo } = useData();
   const confirm = useConfirm();
-  const { location } = useRouterState();
+  const location = useLocation();
 
   useEffect(() => {
     document.documentElement.classList.remove("dark");
