@@ -1,10 +1,11 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { Link } from "react-router-dom";
 import { useData } from "@/context/DataContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Users, Train as TrainIcon, ClipboardList, Clock } from "lucide-react";
 import { fmtDate, fmtHours } from "@/lib/ot-utils";
 
-export const Route = createFileRoute("/")({ component: Dashboard });
+export default function Dashboard() { return <DashboardInner />; }
+
 
 function Dashboard() {
   const { employees, trains, dutySheets } = useData();
