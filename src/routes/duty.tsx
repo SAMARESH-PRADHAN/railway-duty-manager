@@ -17,16 +17,12 @@ import { useConfirm } from "@/components/ConfirmProvider";
 import { Plus, X, Save, ArrowLeft, ArrowRight, ChevronLeft, FileText, BedDouble } from "lucide-react";
 import { toast } from "sonner";
 
-export const Route = createFileRoute("/duty")({
-  component: DutyPage,
-  validateSearch: (s: Record<string, unknown>) => ({ id: (s.id as string) || undefined }),
-});
-
-function DutyPage() {
+export default function DutyPage() {
   const { employees, trains, dutySheets, saveDutySheet } = useData();
   const nav = useNavigate();
   const confirmDialog = useConfirm();
-  const { id: editId } = useSearch({ from: "/duty" }) as { id?: string };
+  const [searchParams] = useSearchParams();
+  const editId = searchParams.get("id") || undefined;
   const existing = editId ? dutySheets.find((d) => d.id === editId) : undefined;
 
   const [step, setStep] = useState<1 | 2 | 3 | 4>(existing ? 4 : 1);
@@ -41,32 +37,41 @@ function DutyPage() {
 
   const [sundayModalOpen, setSundayModalOpen] = useState(false);
   const [pendingStart, setPendingStart] = useState<string>("");
-  
+
   const [unsavedModal, setUnsavedModal] = useState<{ open: boolean; proceed: (() => void) | null }>({ open: false, proceed: null });
 
   const activeEmp = employees.filter((e) => !e.isDeleted && e.status === "active");
   const activeTr = trains.filter((t) => !t.isDeleted && t.status === "active");
   const emp = employees.find((e) => e.id === employeeId);
 
-  // Mark dirty on any relevant edit (skip the initial mount).
   useEffect(() => {
     if (initialLoad.current) { initialLoad.current = false; return; }
     setDirty(true);
   }, [employeeId, trainIds, manualTrainNote, startDate, days]);
 
   // Block cross-route navigation while dirty; show custom modal.
-  useBlocker({
-    shouldBlockFn: ({ next }) => {
-      if (!dirty) return false;
-      if (next.pathname === "/duty") return false;
+  const blocker = useBlocker(({ currentLocation, nextLocation }) => {
+    if (!dirty) return false;
+    if (nextLocation.pathname === currentLocation.pathname) return false;
+    return true;
+  });
+  useEffect(() => {
+    if (blocker.state === "blocked") {
       setUnsavedModal({
         open: true,
-        proceed: () => nav({ to: next.pathname as any, search: next.search as any }),
+        proceed: () => blocker.proceed?.(),
       });
-      return true;
-    },
-    enableBeforeUnload: () => dirty,
-  });
+    }
+  }, [blocker]);
+  useEffect(() => {
+    const beforeUnload = (e: BeforeUnloadEvent) => {
+      if (dirty) { e.preventDefault(); e.returnValue = ""; }
+    };
+    window.addEventListener("beforeunload", beforeUnload);
+    return () => window.removeEventListener("beforeunload", beforeUnload);
+  }, [dirty]);
+
+
 
   const endDate = useMemo(() => startDate ? format(addDays(parseISO(startDate), 13), "yyyy-MM-dd") : "", [startDate]);
 
