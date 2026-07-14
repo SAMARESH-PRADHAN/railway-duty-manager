@@ -14,7 +14,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Combobox } from "@/components/Combobox";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { useConfirm } from "@/components/ConfirmProvider";
-import { Plus, X, Save, ArrowLeft, ArrowRight, ChevronLeft, FileText, BedDouble } from "lucide-react";
+import { Plus, X, Save, ArrowLeft, ArrowRight, ChevronLeft, FileText, BedDouble, Undo2, Redo2 } from "lucide-react";
 import { toast } from "sonner";
 
 export default function DutyPage() {
@@ -31,6 +31,9 @@ export default function DutyPage() {
   const [manualTrainNote, setManualTrainNote] = useState<string>(existing?.manualTrainNote ?? "");
   const [startDate, setStartDate] = useState<string>(existing?.periodStartDate ?? "");
   const [days, setDays] = useState<DutyDay[]>(existing?.days ?? []);
+  const [history, setHistory] = useState<DutyDay[][]>(existing?.days ? [existing.days] : []);
+  const [historyIdx, setHistoryIdx] = useState<number>(existing?.days ? 0 : -1);
+  const skipHistoryRef = useRef(false);
   const [sheetId] = useState<string>(existing?.id ?? uuid());
   const [dirty, setDirty] = useState(false);
   const initialLoad = useRef(true);
@@ -59,6 +62,55 @@ export default function DutyPage() {
     window.addEventListener("beforeunload", beforeUnload);
     return () => window.removeEventListener("beforeunload", beforeUnload);
   }, [dirty]);
+
+  // History: snapshot `days` on every change except undo/redo replays.
+  useEffect(() => {
+    if (days.length === 0) return;
+    if (skipHistoryRef.current) { skipHistoryRef.current = false; return; }
+    setHistory((prev) => {
+      const base = prev.slice(0, historyIdx + 1);
+      const last = base[base.length - 1];
+      if (last && JSON.stringify(last) === JSON.stringify(days)) return prev;
+      const next = [...base, days];
+      // Cap history size.
+      const capped = next.length > 50 ? next.slice(next.length - 50) : next;
+      setHistoryIdx(capped.length - 1);
+      return capped;
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [days]);
+
+  const undo = () => {
+    if (historyIdx <= 0) return;
+    const nextIdx = historyIdx - 1;
+    skipHistoryRef.current = true;
+    setDays(history[nextIdx]);
+    setHistoryIdx(nextIdx);
+  };
+  const redo = () => {
+    if (historyIdx >= history.length - 1) return;
+    const nextIdx = historyIdx + 1;
+    skipHistoryRef.current = true;
+    setDays(history[nextIdx]);
+    setHistoryIdx(nextIdx);
+  };
+  const canUndo = historyIdx > 0;
+  const canRedo = historyIdx < history.length - 1;
+
+  // Keyboard shortcuts: Ctrl/Cmd+Z, Ctrl/Cmd+Shift+Z or Ctrl+Y.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (step !== 4) return;
+      const mod = e.ctrlKey || e.metaKey;
+      if (!mod) return;
+      const k = e.key.toLowerCase();
+      if (k === "z" && !e.shiftKey) { e.preventDefault(); undo(); }
+      else if ((k === "z" && e.shiftKey) || k === "y") { e.preventDefault(); redo(); }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  });
+
 
 
 
@@ -314,7 +366,17 @@ export default function DutyPage() {
       {step === 4 && (
         <Card><CardHeader className="flex flex-row items-center justify-between flex-wrap gap-2">
           <CardTitle className="text-base">Step 4 — 14-Day Grid</CardTitle>
-          <div className="text-xs text-slate-500">Employee: <b>{emp?.name}</b> · Period: <b>{fmtDate(startDate)} – {fmtDate(endDate)}</b></div>
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-1">
+              <Button variant="outline" size="sm" onClick={undo} disabled={!canUndo} title="Undo (Ctrl+Z)" className="h-8 px-2">
+                <Undo2 className="h-4 w-4" />
+              </Button>
+              <Button variant="outline" size="sm" onClick={redo} disabled={!canRedo} title="Redo (Ctrl+Shift+Z)" className="h-8 px-2">
+                <Redo2 className="h-4 w-4" />
+              </Button>
+            </div>
+            <div className="text-xs text-slate-500">Employee: <b>{emp?.name}</b> · Period: <b>{fmtDate(startDate)} – {fmtDate(endDate)}</b></div>
+          </div>
         </CardHeader>
           <CardContent className="space-y-4">
             <div className="overflow-x-auto -mx-6 px-6">
@@ -355,6 +417,8 @@ export default function DutyPage() {
                       });
                     };
                     const bothRest = d.isRestDay && (d.actualIsRest ?? false);
+                    const rosteredCellBg = d.isRestDay ? "bg-amber-50" : "";
+                    const actualCellBg = d.actualIsRest ? "bg-amber-50" : "";
                     return (
                       <tr key={d.date} className={bothRest ? "bg-amber-50" : ""}>
                         <td className="p-2 border align-top sticky left-0 bg-inherit z-10">
@@ -362,13 +426,13 @@ export default function DutyPage() {
                           <div className="text-slate-500 whitespace-nowrap">{fmtDate(d.date)}</div>
                           {bothRest && <div className="mt-1 text-[10px] font-semibold text-amber-700">REST</div>}
                         </td>
-                        <td className="p-2 border align-top">
+                        <td className={`p-2 border align-top ${rosteredCellBg}`}>
                           <SlotEditor slots={d.rosteredSlots} onChange={(s) => setRosteredSlots(i, s)} isRest={d.isRestDay} onToggleRest={toggleRosteredRest} />
                         </td>
-                        <td className="p-2 border align-top">
+                        <td className={`p-2 border align-top ${rosteredCellBg}`}>
                           <Input className="h-7 text-xs w-full" type="number" step="0.01" value={d.rosteredHours} onChange={(e) => updateDay(i, { rosteredHours: Number(e.target.value) })} />
                         </td>
-                        <td className="p-2 border align-top">
+                        <td className={`p-2 border align-top ${actualCellBg}`}>
                           <SlotEditor
                             slots={d.actualSlots}
                             onChange={(s) => updateDay(i, { actualSlots: s, actualHours: sumSlots(s) + leaveHoursCredit(d.leave) })}
