@@ -14,7 +14,6 @@ import { Route as ReportsRouteImport } from './routes/reports'
 import { Route as RecordsRouteImport } from './routes/records'
 import { Route as EmployeesRouteImport } from './routes/employees'
 import { Route as DutyRouteImport } from './routes/duty'
-import { Route as IndexRouteImport } from './routes/index'
 
 const TrainsRoute = TrainsRouteImport.update({
   id: '/trains',
@@ -41,14 +40,8 @@ const DutyRoute = DutyRouteImport.update({
   path: '/duty',
   getParentRoute: () => rootRouteImport,
 } as any)
-const IndexRoute = IndexRouteImport.update({
-  id: '/',
-  path: '/',
-  getParentRoute: () => rootRouteImport,
-} as any)
 
 export interface FileRoutesByFullPath {
-  '/': typeof IndexRoute
   '/duty': typeof DutyRoute
   '/employees': typeof EmployeesRoute
   '/records': typeof RecordsRoute
@@ -56,7 +49,6 @@ export interface FileRoutesByFullPath {
   '/trains': typeof TrainsRoute
 }
 export interface FileRoutesByTo {
-  '/': typeof IndexRoute
   '/duty': typeof DutyRoute
   '/employees': typeof EmployeesRoute
   '/records': typeof RecordsRoute
@@ -65,7 +57,6 @@ export interface FileRoutesByTo {
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
-  '/': typeof IndexRoute
   '/duty': typeof DutyRoute
   '/employees': typeof EmployeesRoute
   '/records': typeof RecordsRoute
@@ -74,21 +65,13 @@ export interface FileRoutesById {
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/duty' | '/employees' | '/records' | '/reports' | '/trains'
+  fullPaths: '/duty' | '/employees' | '/records' | '/reports' | '/trains'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/duty' | '/employees' | '/records' | '/reports' | '/trains'
-  id:
-    | '__root__'
-    | '/'
-    | '/duty'
-    | '/employees'
-    | '/records'
-    | '/reports'
-    | '/trains'
+  to: '/duty' | '/employees' | '/records' | '/reports' | '/trains'
+  id: '__root__' | '/duty' | '/employees' | '/records' | '/reports' | '/trains'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
-  IndexRoute: typeof IndexRoute
   DutyRoute: typeof DutyRoute
   EmployeesRoute: typeof EmployeesRoute
   RecordsRoute: typeof RecordsRoute
@@ -133,18 +116,10 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DutyRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/': {
-      id: '/'
-      path: '/'
-      fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
-      parentRoute: typeof rootRouteImport
-    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
-  IndexRoute: IndexRoute,
   DutyRoute: DutyRoute,
   EmployeesRoute: EmployeesRoute,
   RecordsRoute: RecordsRoute,

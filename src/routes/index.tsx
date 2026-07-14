@@ -60,7 +60,7 @@ export default function Dashboard() {
           {recent.length === 0 ? (
             <div className="text-sm text-slate-500 py-6 text-center">
               No duty sheets yet.{" "}
-              <Link to="/duty" search={{ id: undefined }} className="text-blue-600 hover:underline">Extra Hour Slip</Link>.
+              <Link to="/duty" className="text-blue-600 hover:underline">Extra Hour Slip</Link>.
             </div>
           ) : (
             <div className="overflow-x-auto">
