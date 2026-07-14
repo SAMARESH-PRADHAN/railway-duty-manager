@@ -1,4 +1,4 @@
-import { Link, useRouterState } from "@tanstack/react-router";
+import { Link, useLocation } from "react-router-dom";
 import { LayoutDashboard, Users, Train as TrainIcon, ClipboardList, FileText, BarChart3, Menu, X, RefreshCw } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
 import { useData } from "@/context/DataContext";
