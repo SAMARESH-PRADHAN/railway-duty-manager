@@ -98,7 +98,7 @@ export default function DutyPage() {
   }, [days]);
 
   const bankedRestDays = useMemo(
-    () => days.filter((d) => d.isRestDay && d.actualHours > 0),
+    () => days.filter((d) => d.isRestDay && !d.actualIsRest && (d.actualHours - ((d.leave && d.leave !== "None" && d.leave !== "CR") ? 7 : 0)) > 0),
     [days],
   );
 
