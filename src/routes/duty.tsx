@@ -497,11 +497,7 @@ export default function DutyPage() {
               <StatBox label="Total Rostered" value={fmtHours(totals.totalRost)} />
               <StatBox label="Total Actual" value={fmtHours(totals.totalActual)} />
               <StatBox label="Statutory (fixed)" value="104.00" />
-              <StatBox label="OT Payable (Actual − 104)" value={fmtHours(totals.ot)} highlight />
-            </div>
-
-            <div className="rounded-lg border bg-slate-50 p-3 text-xs text-slate-600">
-              Auto-summed leave deduction across all 14 rows: <b>{fmtHours(totals.ded)}</b> (informational — OT payable is calculated as Total Actual − Statutory 104).
+              <StatBox label="OT Payable" value={fmtHours(totals.ot)} highlight />
             </div>
 
             <div className="flex justify-between flex-wrap gap-2">
