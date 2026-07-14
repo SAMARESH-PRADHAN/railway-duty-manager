@@ -336,26 +336,34 @@ export default function DutyPage() {
                     const line1 = parts[0] ?? "";
                     const line2 = parts.length > 1 ? parts.slice(1).join("\n") : null;
                     const has2 = line2 !== null;
-                    const toggleRest = () => {
+                    const toggleRosteredRest = () => {
                       const next = !d.isRestDay;
-                      // Rest toggles the ROSTERED rest-day status only. Actual timings
-                      // are preserved so the employee can still log work on a rostered
-                      // rest day (that becomes a "banked" rest day for CR attribution).
+                      // Rostered rest toggle: only affects rostered slots + R.Hrs.
                       updateDay(i, {
                         isRestDay: next,
                         rosteredSlots: next ? [] : (d.rosteredSlots.length ? d.rosteredSlots : [{ from: "08:00", to: "16:00" }]),
                         rosteredHours: next ? 0 : (d.rosteredSlots.length ? d.rosteredHours : 8),
                       });
                     };
+                    const toggleActualRest = () => {
+                      const next = !d.actualIsRest;
+                      // Actual rest toggle: only affects actual slots + A.Hrs.
+                      updateDay(i, {
+                        actualIsRest: next,
+                        actualSlots: next ? [] : (d.actualSlots.length ? d.actualSlots : [{ from: "08:00", to: "16:00" }]),
+                        actualHours: next ? 0 : (d.actualSlots.length ? d.actualHours : 8),
+                      });
+                    };
+                    const bothRest = d.isRestDay && (d.actualIsRest ?? false);
                     return (
-                      <tr key={d.date} className={d.isRestDay ? "bg-amber-50" : ""}>
+                      <tr key={d.date} className={bothRest ? "bg-amber-50" : ""}>
                         <td className="p-2 border align-top sticky left-0 bg-inherit z-10">
                           <div className="font-semibold">{d.dayName.slice(0, 3)}</div>
                           <div className="text-slate-500 whitespace-nowrap">{fmtDate(d.date)}</div>
-                          {d.isRestDay && <div className="mt-1 text-[10px] font-semibold text-amber-700">REST</div>}
+                          {bothRest && <div className="mt-1 text-[10px] font-semibold text-amber-700">REST</div>}
                         </td>
                         <td className="p-2 border align-top">
-                          <SlotEditor slots={d.rosteredSlots} onChange={(s) => setRosteredSlots(i, s)} isRest={d.isRestDay} onToggleRest={toggleRest} />
+                          <SlotEditor slots={d.rosteredSlots} onChange={(s) => setRosteredSlots(i, s)} isRest={d.isRestDay} onToggleRest={toggleRosteredRest} />
                         </td>
                         <td className="p-2 border align-top">
                           <Input className="h-7 text-xs w-full" type="number" step="0.01" value={d.rosteredHours} onChange={(e) => updateDay(i, { rosteredHours: Number(e.target.value) })} />
@@ -363,9 +371,9 @@ export default function DutyPage() {
                         <td className="p-2 border align-top">
                           <SlotEditor
                             slots={d.actualSlots}
-                            onChange={(s) => updateDay(i, { actualSlots: s, actualHours: sumSlots(s) })}
-                            isRest={d.isRestDay}
-                            onToggleRest={toggleRest}
+                            onChange={(s) => updateDay(i, { actualSlots: s, actualHours: sumSlots(s) + leaveHoursCredit(d.leave) })}
+                            isRest={d.actualIsRest}
+                            onToggleRest={toggleActualRest}
                             leave={d.leave ?? "None"}
                             onLeaveChange={(v) => setLeave(i, v)}
                           />
