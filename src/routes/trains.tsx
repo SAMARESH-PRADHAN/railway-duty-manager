@@ -1,4 +1,3 @@
-import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useData } from "@/context/DataContext";
 import type { Train } from "@/lib/types";
@@ -14,11 +13,10 @@ import { exportSheet } from "@/lib/excel-export";
 import { Pencil, Trash2, RotateCcw, Plus, Power, Download } from "lucide-react";
 import { toast } from "sonner";
 
-export const Route = createFileRoute("/trains")({ component: TrainsPage });
 
 const CATS = ["Vande Bharat", "Rajdhani", "Shatabdi"];
 
-function TrainsPage() {
+export default function TrainsPage() {
   const { trains, addTrain, updateTrain, toggleTrainStatus, softDeleteTrain, restoreTrain } = useData();
   const confirm = useConfirm();
   const [q, setQ] = useState("");

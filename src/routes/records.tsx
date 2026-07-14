@@ -1,4 +1,3 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useData } from "@/context/DataContext";
 import { Button } from "@/components/ui/button";
@@ -12,9 +11,8 @@ import { exportOtSlipPdf } from "@/lib/pdf-export";
 import { useConfirm } from "@/components/ConfirmProvider";
 import { toast } from "sonner";
 
-export const Route = createFileRoute("/records")({ component: RecordsPage });
 
-function RecordsPage() {
+export default function RecordsPage() {
   const { dutySheets, employees, trains, deleteDutySheet } = useData();
   const confirm = useConfirm();
   const [emp, setEmp] = useState<string>("all");

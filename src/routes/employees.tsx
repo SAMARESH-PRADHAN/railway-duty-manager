@@ -1,4 +1,3 @@
-import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useRef, useState } from "react";
 import * as XLSX from "xlsx";
 import { useData } from "@/context/DataContext";
@@ -15,7 +14,6 @@ import { exportSheet } from "@/lib/excel-export";
 import { Pencil, Trash2, RotateCcw, Plus, Power, Download, Upload, HelpCircle } from "lucide-react";
 import { toast } from "sonner";
 
-export const Route = createFileRoute("/employees")({ component: EmployeesPage });
 
 const DESIGNATIONS = ["Asst", "Tech-I", "Tech-II", "Tech-III", "Sr.Tech", "Helper"];
 const GROUPS = ["A", "B", "C", "D", "E", "F"];
@@ -26,7 +24,7 @@ const emptyForm: Partial<Employee> = {
   groupType: "A", address: "", phone: "", dateOfBirth: "", dateOfJoining: "",
 };
 
-function EmployeesPage() {
+export default function EmployeesPage() {
   const { employees, addEmployee, updateEmployee, toggleEmployeeStatus, softDeleteEmployee, restoreEmployee } = useData();
   const confirm = useConfirm();
   const [q, setQ] = useState("");
