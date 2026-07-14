@@ -115,9 +115,9 @@ export default function DutyPage() {
     });
   };
 
-  // When user changes rostered slots, auto-copy into actual (as sensible default).
+  // Rostered slot edits only affect the rostered column (not actual).
   const setRosteredSlots = (idx: number, slots: TimeSlot[]) => {
-    updateDay(idx, { rosteredSlots: slots, rosteredHours: sumSlots(slots), actualSlots: slots.map((s) => ({ ...s })), actualHours: sumSlots(slots) });
+    updateDay(idx, { rosteredSlots: slots, rosteredHours: sumSlots(slots) });
   };
 
   // Hours credited by a leave (added on top of any actually-worked hours).
