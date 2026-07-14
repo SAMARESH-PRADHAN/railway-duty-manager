@@ -120,29 +120,34 @@ export default function DutyPage() {
     updateDay(idx, { rosteredSlots: slots, rosteredHours: sumSlots(slots), actualSlots: slots.map((s) => ({ ...s })), actualHours: sumSlots(slots) });
   };
 
+  // Hours credited by a leave (added on top of any actually-worked hours).
+  const leaveHoursCredit = (l?: LeaveType) => (l && l !== "None" && l !== "CR" ? 7 : 0);
+
   const setLeave = (idx: number, leave: LeaveType) => {
-    // Apply leave-specific default for actual hours.
-    let actualPatch: Partial<DutyDay> = {};
-    if (leave === "CR") {
-      actualPatch = { actualSlots: [], actualHours: 0 };
-    } else if (leave && leave !== "None") {
-      // Other paid leaves default to 7 actual hours (no slots).
-      actualPatch = { actualSlots: [], actualHours: 7 };
-    }
+    const d = days[idx];
+    const prevCredit = leaveHoursCredit(d.leave);
+    const newCredit = leaveHoursCredit(leave);
+    const newActualHours = Math.max(
+      0,
+      Math.round((d.actualHours - prevCredit + newCredit) * 100) / 100,
+    );
+    const patch: Partial<DutyDay> = { leave, actualHours: newActualHours };
 
     if (leave === "CR") {
       const used = new Set(
         days
-          .map((d, k) => (k !== idx && d.leave === "CR" ? (d.description.match(/CR of (\d{2}\.\d{2}\.\d{4})/)?.[1] ?? "") : ""))
+          .map((dd, k) => (k !== idx && dd.leave === "CR" ? (dd.description.match(/CR of (\d{2}\.\d{2}\.\d{4})/)?.[1] ?? "") : ""))
           .filter(Boolean)
       );
       const target = bankedRestDays.find((b) => !used.has(fmtDate(b.date)));
       if (target) {
-        updateDay(idx, { leave, description: `CR of ${fmtDate(target.date)}`, ...actualPatch });
-        return;
+        const note = `CR of ${fmtDate(target.date)}`;
+        if (!d.description.includes(note)) {
+          patch.description = d.description ? `${d.description}\n${note}` : note;
+        }
       }
     }
-    updateDay(idx, { leave, ...actualPatch });
+    updateDay(idx, patch);
   };
 
 
