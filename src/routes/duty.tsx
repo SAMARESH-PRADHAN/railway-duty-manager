@@ -196,15 +196,15 @@ export default function DutyPage() {
     setDirty(false);
     toast.success(asDraft ? "Saved as draft" : "Duty sheet saved");
     // Small tick so blocker sees dirty=false
-    setTimeout(() => nav({ to: "/records" }), 0);
+    setTimeout(() => nav("/records"), 0);
   };
 
   const handleBack = async () => {
     if (step > 1 && !existing) { setStep((s) => (s - 1) as 1 | 2 | 3 | 4); return; }
     if (dirty) {
-      setUnsavedModal({ open: true, proceed: () => nav({ to: "/records" }) });
+      setUnsavedModal({ open: true, proceed: () => nav("/records") });
     } else {
-      nav({ to: "/records" });
+      nav("/records");
     }
   };
 
