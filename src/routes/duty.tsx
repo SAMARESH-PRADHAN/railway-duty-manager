@@ -417,6 +417,8 @@ export default function DutyPage() {
                       });
                     };
                     const bothRest = d.isRestDay && (d.actualIsRest ?? false);
+                    const rosteredCellBg = d.isRestDay ? "bg-amber-50" : "";
+                    const actualCellBg = d.actualIsRest ? "bg-amber-50" : "";
                     return (
                       <tr key={d.date} className={bothRest ? "bg-amber-50" : ""}>
                         <td className="p-2 border align-top sticky left-0 bg-inherit z-10">
@@ -424,13 +426,13 @@ export default function DutyPage() {
                           <div className="text-slate-500 whitespace-nowrap">{fmtDate(d.date)}</div>
                           {bothRest && <div className="mt-1 text-[10px] font-semibold text-amber-700">REST</div>}
                         </td>
-                        <td className="p-2 border align-top">
+                        <td className={`p-2 border align-top ${rosteredCellBg}`}>
                           <SlotEditor slots={d.rosteredSlots} onChange={(s) => setRosteredSlots(i, s)} isRest={d.isRestDay} onToggleRest={toggleRosteredRest} />
                         </td>
-                        <td className="p-2 border align-top">
+                        <td className={`p-2 border align-top ${rosteredCellBg}`}>
                           <Input className="h-7 text-xs w-full" type="number" step="0.01" value={d.rosteredHours} onChange={(e) => updateDay(i, { rosteredHours: Number(e.target.value) })} />
                         </td>
-                        <td className="p-2 border align-top">
+                        <td className={`p-2 border align-top ${actualCellBg}`}>
                           <SlotEditor
                             slots={d.actualSlots}
                             onChange={(s) => updateDay(i, { actualSlots: s, actualHours: sumSlots(s) + leaveHoursCredit(d.leave) })}
