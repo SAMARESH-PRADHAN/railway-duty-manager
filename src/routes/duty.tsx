@@ -5,7 +5,7 @@ import { addDays, format, parseISO } from "date-fns";
 import { v4 as uuid } from "uuid";
 import { useData } from "@/context/DataContext";
 import type { DutyDay, DutySheet, LeaveType, TimeSlot } from "@/lib/types";
-import { LEAVE_OPTIONS, STATUTORY_HOURS, fmtDate, fmtHours, generate14Days, leaveDeduction, periodsOverlap, sumSlots, totalDeduction } from "@/lib/ot-utils";
+import { LEAVE_OPTIONS, STATUTORY_HOURS, defaultRosterSlot, fmtDate, fmtHours, generate14Days, leaveDeduction, periodsOverlap, sumSlots, totalDeduction } from "@/lib/ot-utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
