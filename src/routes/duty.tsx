@@ -205,7 +205,7 @@ export default function DutyPage() {
 
   const applyStartDate = (iso: string) => {
     setStartDate(iso);
-    setDays(generate14Days(iso));
+    setDays(generate14Days(iso, emp?.designation));
   };
 
   const handleStartDateChange = (iso: string) => {
@@ -400,19 +400,21 @@ export default function DutyPage() {
                     const has2 = line2 !== null;
                     const toggleRosteredRest = () => {
                       const next = !d.isRestDay;
+                      const defSlot = defaultRosterSlot(emp?.designation);
                       // Rostered rest toggle: only affects rostered slots + R.Hrs.
                       updateDay(i, {
                         isRestDay: next,
-                        rosteredSlots: next ? [] : (d.rosteredSlots.length ? d.rosteredSlots : [{ from: "08:00", to: "16:00" }]),
+                        rosteredSlots: next ? [] : (d.rosteredSlots.length ? d.rosteredSlots : [{ ...defSlot }]),
                         rosteredHours: next ? 0 : (d.rosteredSlots.length ? d.rosteredHours : 8),
                       });
                     };
                     const toggleActualRest = () => {
                       const next = !d.actualIsRest;
+                      const defSlot = defaultRosterSlot(emp?.designation);
                       // Actual rest toggle: only affects actual slots + A.Hrs.
                       updateDay(i, {
                         actualIsRest: next,
-                        actualSlots: next ? [] : (d.actualSlots.length ? d.actualSlots : [{ from: "08:00", to: "16:00" }]),
+                        actualSlots: next ? [] : (d.actualSlots.length ? d.actualSlots : [{ ...defSlot }]),
                         actualHours: next ? 0 : (d.actualSlots.length ? d.actualHours : 8),
                       });
                     };
