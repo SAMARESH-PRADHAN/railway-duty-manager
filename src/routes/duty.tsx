@@ -5,7 +5,7 @@ import { addDays, format, parseISO } from "date-fns";
 import { v4 as uuid } from "uuid";
 import { useData } from "@/context/DataContext";
 import type { DutyDay, DutySheet, LeaveType, TimeSlot } from "@/lib/types";
-import { LEAVE_OPTIONS, STATUTORY_HOURS, fmtDate, fmtHours, generate14Days, leaveDeduction, periodsOverlap, sumSlots, totalDeduction } from "@/lib/ot-utils";
+import { LEAVE_OPTIONS, STATUTORY_HOURS, defaultRosterSlot, fmtDate, fmtHours, generate14Days, leaveDeduction, periodsOverlap, sumSlots, totalDeduction } from "@/lib/ot-utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -205,7 +205,7 @@ export default function DutyPage() {
 
   const applyStartDate = (iso: string) => {
     setStartDate(iso);
-    setDays(generate14Days(iso));
+    setDays(generate14Days(iso, emp?.designation));
   };
 
   const handleStartDateChange = (iso: string) => {
@@ -400,19 +400,21 @@ export default function DutyPage() {
                     const has2 = line2 !== null;
                     const toggleRosteredRest = () => {
                       const next = !d.isRestDay;
+                      const defSlot = defaultRosterSlot(emp?.designation);
                       // Rostered rest toggle: only affects rostered slots + R.Hrs.
                       updateDay(i, {
                         isRestDay: next,
-                        rosteredSlots: next ? [] : (d.rosteredSlots.length ? d.rosteredSlots : [{ from: "08:00", to: "16:00" }]),
+                        rosteredSlots: next ? [] : (d.rosteredSlots.length ? d.rosteredSlots : [{ ...defSlot }]),
                         rosteredHours: next ? 0 : (d.rosteredSlots.length ? d.rosteredHours : 8),
                       });
                     };
                     const toggleActualRest = () => {
                       const next = !d.actualIsRest;
+                      const defSlot = defaultRosterSlot(emp?.designation);
                       // Actual rest toggle: only affects actual slots + A.Hrs.
                       updateDay(i, {
                         actualIsRest: next,
-                        actualSlots: next ? [] : (d.actualSlots.length ? d.actualSlots : [{ from: "08:00", to: "16:00" }]),
+                        actualSlots: next ? [] : (d.actualSlots.length ? d.actualSlots : [{ ...defSlot }]),
                         actualHours: next ? 0 : (d.actualSlots.length ? d.actualHours : 8),
                       });
                     };

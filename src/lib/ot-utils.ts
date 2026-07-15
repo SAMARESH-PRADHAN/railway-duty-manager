@@ -3,6 +3,35 @@ import type { DutyDay, DutySheet, TimeSlot, LeaveType } from "./types";
 
 export const LEAVE_OPTIONS: LeaveType[] = ["None", "CR", "CL", "LAP", "NH", "PL", "SCL", "Sick"];
 
+/**
+ * Designation-wise default roster start time (24h HH:MM).
+ * Every shift is a standard 8-hour duty; the end time is derived automatically.
+ * Edit this map to change the predefined timings.
+ */
+export const DESIGNATION_ROSTER_START: Record<string, string> = {
+  "Helper": "06:00",
+  "Sr.Tech": "08:00",
+  "Tech-I": "09:00",
+  "Tech-II": "10:00",
+  "Tech-III": "11:00",
+  "Asst": "09:30",
+};
+export const DEFAULT_ROSTER_START = "08:00";
+export const DEFAULT_SHIFT_HOURS = 8;
+
+function addHoursToHHMM(hhmm: string, hours: number): string {
+  const [h, m] = hhmm.split(":").map(Number);
+  const total = (h * 60 + m + hours * 60) % (24 * 60);
+  const nh = Math.floor(total / 60);
+  const nm = total % 60;
+  return `${String(nh).padStart(2, "0")}:${String(nm).padStart(2, "0")}`;
+}
+
+export function defaultRosterSlot(designation?: string): TimeSlot {
+  const from = (designation && DESIGNATION_ROSTER_START[designation]) || DEFAULT_ROSTER_START;
+  return { from, to: addHoursToHHMM(from, DEFAULT_SHIFT_HOURS) };
+}
+
 export function slotHours(slot: TimeSlot): number {
   if (!slot.from || !slot.to) return 0;
   const [fh, fm] = slot.from.split(":").map(Number);
@@ -18,8 +47,9 @@ export function sumSlots(slots: TimeSlot[]): number {
   return Math.round(slots.reduce((a, s) => a + slotHours(s), 0) * 100) / 100;
 }
 
-export function generate14Days(startISO: string): DutyDay[] {
+export function generate14Days(startISO: string, designation?: string): DutyDay[] {
   const start = parseISO(startISO);
+  const slot = defaultRosterSlot(designation);
   const days: DutyDay[] = [];
   for (let i = 0; i < 14; i++) {
     const d = addDays(start, i);
@@ -30,10 +60,10 @@ export function generate14Days(startISO: string): DutyDay[] {
       dayName,
       isRestDay: isRest,
       actualIsRest: isRest,
-      rosteredSlots: isRest ? [] : [{ from: "08:00", to: "16:00" }],
-      rosteredHours: isRest ? 0 : 8,
-      actualSlots: isRest ? [] : [{ from: "08:00", to: "16:00" }],
-      actualHours: isRest ? 0 : 8,
+      rosteredSlots: isRest ? [] : [{ ...slot }],
+      rosteredHours: isRest ? 0 : DEFAULT_SHIFT_HOURS,
+      actualSlots: isRest ? [] : [{ ...slot }],
+      actualHours: isRest ? 0 : DEFAULT_SHIFT_HOURS,
       extraHours: 0,
       description: "",
       leave: "None",
