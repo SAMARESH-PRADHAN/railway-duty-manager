@@ -1,5 +1,10 @@
+// src/App.tsx
 import { Routes, Route, Link, useLocation } from "react-router-dom";
+import { Toaster } from "@/components/ui/sonner";
 import { AppLayout } from "@/components/AppLayout";
+import { DataProvider } from "@/context/DataContext";
+import { DataLoader } from "./components/DataLoader";
+import { ConfirmProvider } from "@/components/ConfirmProvider";
 import Dashboard from "@/routes/index";
 import EmployeesPage from "@/routes/employees";
 import TrainsPage from "@/routes/trains";
@@ -37,16 +42,23 @@ export default function App() {
     void location.pathname;
   }
   return (
-    <AppLayout>
-      <Routes>
-        <Route path="/" element={<Dashboard />} />
-        <Route path="/employees" element={<EmployeesPage />} />
-        <Route path="/trains" element={<TrainsPage />} />
-        <Route path="/duty" element={<DutyPage />} />
-        <Route path="/records" element={<RecordsPage />} />
-        <Route path="/reports" element={<ReportsPage />} />
-        <Route path="*" element={<NotFound />} />
-      </Routes>
-    </AppLayout>
+    <DataProvider>
+      <DataLoader>
+        <ConfirmProvider>
+          <AppLayout>
+            <Routes>
+              <Route path="/" element={<Dashboard />} />
+              <Route path="/employees" element={<EmployeesPage />} />
+              <Route path="/trains" element={<TrainsPage />} />
+              <Route path="/duty" element={<DutyPage />} />
+              <Route path="/records" element={<RecordsPage />} />
+              <Route path="/reports" element={<ReportsPage />} />
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+            <Toaster richColors position="top-right" />
+          </AppLayout>
+        </ConfirmProvider>
+      </DataLoader>
+    </DataProvider>
   );
 }
