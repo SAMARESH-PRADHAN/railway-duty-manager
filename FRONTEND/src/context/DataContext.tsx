@@ -1,7 +1,7 @@
+// src/context/DataContext.tsx
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { v4 as uuid } from "uuid";
-import { KEYS, clearAll, readList, writeList } from "@/lib/storage";
-import { seedDutySheets, seedEmployees, seedTrains } from "@/lib/seed";
+import { api } from "@/lib/api";
 import type { DutySheet, Employee, Train } from "@/lib/types";
 import { recalcSheet } from "@/lib/ot-utils";
 
@@ -9,19 +9,22 @@ interface DataCtx {
   employees: Employee[];
   trains: Train[];
   dutySheets: DutySheet[];
-  addEmployee: (e: Omit<Employee, "id" | "slNo" | "createdAt" | "updatedAt" | "isDeleted" | "status"> & Partial<Pick<Employee, "status">>) => Employee;
-  updateEmployee: (id: string, patch: Partial<Employee>) => void;
-  toggleEmployeeStatus: (id: string) => void;
-  softDeleteEmployee: (id: string) => void;
-  restoreEmployee: (id: string) => void;
-  addTrain: (t: Omit<Train, "id" | "createdAt" | "updatedAt" | "isDeleted" | "status"> & Partial<Pick<Train, "status">>) => Train;
-  updateTrain: (id: string, patch: Partial<Train>) => void;
-  toggleTrainStatus: (id: string) => void;
-  softDeleteTrain: (id: string) => void;
-  restoreTrain: (id: string) => void;
-  saveDutySheet: (s: DutySheet) => void;
-  deleteDutySheet: (id: string) => void;
-  resetDemo: () => void;
+  loading: boolean;
+  error: string | null;
+  addEmployee: (e: Omit<Employee, "id" | "slNo" | "createdAt" | "updatedAt" | "isDeleted" | "status"> & Partial<Pick<Employee, "status">>) => Promise<Employee>;
+  updateEmployee: (id: string, patch: Partial<Employee>) => Promise<void>;
+  toggleEmployeeStatus: (id: string) => Promise<void>;
+  softDeleteEmployee: (id: string) => Promise<void>;
+  restoreEmployee: (id: string) => Promise<void>;
+  addTrain: (t: Omit<Train, "id" | "createdAt" | "updatedAt" | "isDeleted" | "status"> & Partial<Pick<Train, "status">>) => Promise<Train>;
+  updateTrain: (id: string, patch: Partial<Train>) => Promise<void>;
+  toggleTrainStatus: (id: string) => Promise<void>;
+  softDeleteTrain: (id: string) => Promise<void>;
+  restoreTrain: (id: string) => Promise<void>;
+  saveDutySheet: (s: DutySheet) => Promise<void>;
+  deleteDutySheet: (id: string) => Promise<void>;
+  resetDemo: () => Promise<void>;
+  refresh: () => Promise<void>;
 }
 
 const Ctx = createContext<DataCtx | null>(null);
@@ -30,112 +33,154 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [trains, setTrains] = useState<Train[]>([]);
   const [dutySheets, setDutySheets] = useState<DutySheet[]>([]);
-  const [ready, setReady] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const loadData = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const [emps, trs, ds] = await Promise.all([
+        api.getEmployees(),
+        api.getTrains(),
+        api.getDutySheets(),
+      ]);
+      setEmployees(emps);
+      setTrains(trs);
+      setDutySheets(ds);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to load data";
+      setError(message);
+      console.error("Failed to load data:", err);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
-    const seeded = readList<string>(KEYS.seeded);
-    let emps = readList<Employee>(KEYS.employees);
-    let trs = readList<Train>(KEYS.trains);
-    let ds = readList<DutySheet>(KEYS.dutysheets);
-    if (seeded.length === 0 || emps.length === 0) {
-      emps = seedEmployees();
-      trs = seedTrains();
-      ds = seedDutySheets(emps, trs);
-      writeList(KEYS.employees, emps);
-      writeList(KEYS.trains, trs);
-      writeList(KEYS.dutysheets, ds);
-      writeList(KEYS.seeded, ["2"]);
-    }
-    setEmployees(emps);
-    setTrains(trs);
-    setDutySheets(ds);
-    setReady(true);
-  }, []);
+    loadData();
+  }, [loadData]);
 
-  useEffect(() => { if (ready) writeList(KEYS.employees, employees); }, [employees, ready]);
-  useEffect(() => { if (ready) writeList(KEYS.trains, trains); }, [trains, ready]);
-  useEffect(() => { if (ready) writeList(KEYS.dutysheets, dutySheets); }, [dutySheets, ready]);
+  const refresh = useCallback(async () => {
+    await loadData();
+  }, [loadData]);
 
-  const addEmployee: DataCtx["addEmployee"] = useCallback((e) => {
-    const now = new Date().toISOString();
-    let created!: Employee;
-    setEmployees((prev) => {
-      const nextSl = (prev.reduce((m, x) => Math.max(m, x.slNo), 0) || 0) + 1;
-      created = {
-        id: uuid(), slNo: nextSl, status: e.status ?? "active", isDeleted: false,
-        createdAt: now, updatedAt: now, ...e,
-      } as Employee;
-      return [...prev, created];
-    });
+  // ============ EMPLOYEE OPERATIONS ============
+  const addEmployee: DataCtx["addEmployee"] = useCallback(async (e) => {
+    const created = await api.createEmployee(e);
+    setEmployees((prev) => [...prev, created]);
     return created;
   }, []);
 
-  const updateEmployee: DataCtx["updateEmployee"] = useCallback((id, patch) => {
-    setEmployees((prev) => prev.map((e) => e.id === id ? { ...e, ...patch, updatedAt: new Date().toISOString() } : e));
-  }, []);
-  const toggleEmployeeStatus = useCallback((id: string) => {
-    setEmployees((prev) => prev.map((e) => e.id === id ? { ...e, status: e.status === "active" ? "inactive" : "active", updatedAt: new Date().toISOString() } : e));
-  }, []);
-  const softDeleteEmployee = useCallback((id: string) => {
-    setEmployees((prev) => prev.map((e) => e.id === id ? { ...e, isDeleted: true, updatedAt: new Date().toISOString() } : e));
-  }, []);
-  const restoreEmployee = useCallback((id: string) => {
-    setEmployees((prev) => prev.map((e) => e.id === id ? { ...e, isDeleted: false, updatedAt: new Date().toISOString() } : e));
+  const updateEmployee: DataCtx["updateEmployee"] = useCallback(async (id, patch) => {
+    const updated = await api.updateEmployee(id, patch);
+    setEmployees((prev) => prev.map((e) => e.id === id ? updated : e));
   }, []);
 
-  const addTrain: DataCtx["addTrain"] = useCallback((t) => {
-    const now = new Date().toISOString();
-    let created!: Train;
-    setTrains((prev) => {
-      created = { id: uuid(), status: t.status ?? "active", isDeleted: false, createdAt: now, updatedAt: now, ...t } as Train;
-      return [...prev, created];
-    });
+  const toggleEmployeeStatus: DataCtx["toggleEmployeeStatus"] = useCallback(async (id) => {
+    const updated = await api.toggleEmployeeStatus(id);
+    setEmployees((prev) => prev.map((e) => e.id === id ? updated : e));
+  }, []);
+
+  const softDeleteEmployee: DataCtx["softDeleteEmployee"] = useCallback(async (id) => {
+    const updated = await api.softDeleteEmployee(id);
+    setEmployees((prev) => prev.map((e) => e.id === id ? updated : e));
+  }, []);
+
+  const restoreEmployee: DataCtx["restoreEmployee"] = useCallback(async (id) => {
+    const updated = await api.restoreEmployee(id);
+    setEmployees((prev) => prev.map((e) => e.id === id ? updated : e));
+  }, []);
+
+  // ============ TRAIN OPERATIONS ============
+  const addTrain: DataCtx["addTrain"] = useCallback(async (t) => {
+    const created = await api.createTrain(t);
+    setTrains((prev) => [...prev, created]);
     return created;
   }, []);
-  const updateTrain: DataCtx["updateTrain"] = useCallback((id, patch) => {
-    setTrains((prev) => prev.map((t) => t.id === id ? { ...t, ...patch, updatedAt: new Date().toISOString() } : t));
-  }, []);
-  const toggleTrainStatus = useCallback((id: string) => {
-    setTrains((prev) => prev.map((t) => t.id === id ? { ...t, status: t.status === "active" ? "inactive" : "active", updatedAt: new Date().toISOString() } : t));
-  }, []);
-  const softDeleteTrain = useCallback((id: string) => {
-    setTrains((prev) => prev.map((t) => t.id === id ? { ...t, isDeleted: true, updatedAt: new Date().toISOString() } : t));
-  }, []);
-  const restoreTrain = useCallback((id: string) => {
-    setTrains((prev) => prev.map((t) => t.id === id ? { ...t, isDeleted: false, updatedAt: new Date().toISOString() } : t));
+
+  const updateTrain: DataCtx["updateTrain"] = useCallback(async (id, patch) => {
+    const updated = await api.updateTrain(id, patch);
+    setTrains((prev) => prev.map((t) => t.id === id ? updated : t));
   }, []);
 
-  const saveDutySheet = useCallback((s: DutySheet) => {
+  const toggleTrainStatus: DataCtx["toggleTrainStatus"] = useCallback(async (id) => {
+    const updated = await api.toggleTrainStatus(id);
+    setTrains((prev) => prev.map((t) => t.id === id ? updated : t));
+  }, []);
+
+  const softDeleteTrain: DataCtx["softDeleteTrain"] = useCallback(async (id) => {
+    const updated = await api.softDeleteTrain(id);
+    setTrains((prev) => prev.map((t) => t.id === id ? updated : t));
+  }, []);
+
+  const restoreTrain: DataCtx["restoreTrain"] = useCallback(async (id) => {
+    const updated = await api.restoreTrain(id);
+    setTrains((prev) => prev.map((t) => t.id === id ? updated : t));
+  }, []);
+
+  // ============ DUTY SHEET OPERATIONS ============
+  const saveDutySheet: DataCtx["saveDutySheet"] = useCallback(async (s) => {
     const recalced = recalcSheet({ ...s, updatedAt: new Date().toISOString() });
+    const saved = await api.saveDutySheet(recalced);
     setDutySheets((prev) => {
-      const exists = prev.some((d) => d.id === recalced.id);
-      return exists ? prev.map((d) => d.id === recalced.id ? recalced : d) : [...prev, recalced];
+      const exists = prev.some((d) => d.id === saved.id);
+      return exists ? prev.map((d) => d.id === saved.id ? saved : d) : [...prev, saved];
     });
   }, []);
-  const deleteDutySheet = useCallback((id: string) => {
+
+  const deleteDutySheet: DataCtx["deleteDutySheet"] = useCallback(async (id) => {
+    await api.deleteDutySheet(id);
     setDutySheets((prev) => prev.filter((d) => d.id !== id));
   }, []);
 
-  const resetDemo = useCallback(() => {
-    clearAll();
-    const emps = seedEmployees();
-    const trs = seedTrains();
-    const ds = seedDutySheets(emps, trs);
-    writeList(KEYS.employees, emps);
-    writeList(KEYS.trains, trs);
-    writeList(KEYS.dutysheets, ds);
-    writeList(KEYS.seeded, ["2"]);
-    setEmployees(emps);
-    setTrains(trs);
-    setDutySheets(ds);
-  }, []);
+  // ============ RESET ============
+  const resetDemo: DataCtx["resetDemo"] = useCallback(async () => {
+    await api.resetDemo();
+    await loadData();
+  }, [loadData]);
 
   const value = useMemo<DataCtx>(() => ({
-    employees, trains, dutySheets,
-    addEmployee, updateEmployee, toggleEmployeeStatus, softDeleteEmployee, restoreEmployee,
-    addTrain, updateTrain, toggleTrainStatus, softDeleteTrain, restoreTrain,
-    saveDutySheet, deleteDutySheet, resetDemo,
-  }), [employees, trains, dutySheets, addEmployee, updateEmployee, toggleEmployeeStatus, softDeleteEmployee, restoreEmployee, addTrain, updateTrain, toggleTrainStatus, softDeleteTrain, restoreTrain, saveDutySheet, deleteDutySheet, resetDemo]);
+    employees,
+    trains,
+    dutySheets,
+    loading,
+    error,
+    addEmployee,
+    updateEmployee,
+    toggleEmployeeStatus,
+    softDeleteEmployee,
+    restoreEmployee,
+    addTrain,
+    updateTrain,
+    toggleTrainStatus,
+    softDeleteTrain,
+    restoreTrain,
+    saveDutySheet,
+    deleteDutySheet,
+    resetDemo,
+    refresh,
+  }), [
+    employees,
+    trains,
+    dutySheets,
+    loading,
+    error,
+    addEmployee,
+    updateEmployee,
+    toggleEmployeeStatus,
+    softDeleteEmployee,
+    restoreEmployee,
+    addTrain,
+    updateTrain,
+    toggleTrainStatus,
+    softDeleteTrain,
+    restoreTrain,
+    saveDutySheet,
+    deleteDutySheet,
+    resetDemo,
+    refresh,
+  ]);
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
