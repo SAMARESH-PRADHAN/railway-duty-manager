@@ -4,7 +4,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { useData } from "@/context/DataContext";
 import { Button } from "@/components/ui/button";
 import { useConfirm } from "@/components/ConfirmProvider";
-import { toast } from "sonner";
+// import { toast } from "sonner";
 
 const nav = [
   { to: "/", label: "Dashboard", icon: LayoutDashboard },
@@ -17,8 +17,8 @@ const nav = [
 
 export function AppLayout({ children }: { children: ReactNode }) {
   const [open, setOpen] = useState(false);
-  const { resetDemo } = useData();
-  const confirm = useConfirm();
+  // const { resetDemo } = useData();
+  // const confirm = useConfirm();
   const location = useLocation();
 
   useEffect(() => {
@@ -65,7 +65,7 @@ export function AppLayout({ children }: { children: ReactNode }) {
               );
             })}
           </nav>
-          <div className="absolute bottom-0 left-0 right-0 p-3 border-t border-white/10">
+          {/* <div className="absolute bottom-0 left-0 right-0 p-3 border-t border-white/10">
             <Button
               variant="outline"
               size="sm"
@@ -82,7 +82,7 @@ export function AppLayout({ children }: { children: ReactNode }) {
             >
               <RefreshCw className="h-3 w-3 mr-2" /> Reset Demo Data
             </Button>
-          </div>
+          </div> */}
         </aside>
 
         <main className="flex-1 min-w-0 p-4 md:p-8">
