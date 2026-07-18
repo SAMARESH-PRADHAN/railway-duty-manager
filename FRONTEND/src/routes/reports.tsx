@@ -90,7 +90,7 @@ export default function ReportsPage() {
             <CardHeader className="flex flex-row items-center justify-between flex-wrap gap-2">
               <CardTitle className="text-base">Results — {group === "all" ? "All Groups" : `Group ${group}`} ({rows.length} employee{rows.length === 1 ? "" : "s"})</CardTitle>
               <div className="flex gap-2">
-                <Button variant="outline" size="sm" onClick={() => window.print()}><Printer className="h-4 w-4 mr-1" /> Print</Button>
+                {/* <Button variant="outline" size="sm" onClick={() => window.print()}><Printer className="h-4 w-4 mr-1" /> Print</Button> */}
                 <Button size="sm" className="bg-[#0b2545] hover:bg-[#0b2545]/90"
                   onClick={() => exportReportPdf({ rows, groupType: group === "all" ? "All" : group, from, to, refNo, date, body })}>
                   <FileDown className="h-4 w-4 mr-1" /> Export PDF
@@ -120,7 +120,7 @@ export default function ReportsPage() {
                         <td className="text-right whitespace-pre-line">{r.sheets.map((s) => fmtHours(s.totalRosteredHours)).join("\n")}</td>
                         <td className="text-right whitespace-pre-line">{r.sheets.map((s) => fmtHours(s.totalActualHours)).join("\n")}</td>
                         <td className="text-right whitespace-pre-line">{r.sheets.map(() => "104.00").join("\n")}</td>
-                        <td className="text-right whitespace-pre-line font-bold text-emerald-700">{r.sheets.map((s) => fmtHours(s.otPayable)).join("\n")}</td>
+                        <td className="text-right whitespace-pre-line font-bold text-emerald-700 pr-8">{r.sheets.map((s) => fmtHours(s.otPayable)).join("\n")}</td>
                       </tr>
                     ))}
                     {rows.length === 0 && <tr><td colSpan={7} className="p-8 text-center text-slate-500">No duty sheets match the filters.</td></tr>}
