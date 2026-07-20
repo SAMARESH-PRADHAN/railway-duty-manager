@@ -7,14 +7,11 @@ function slotToStr(s: { from: string; to: string }) {
   return `${s.from.replace(":", ".")}:${s.to.replace(":", ".")}`;
 }
 
-
-
-
 export function exportOtSlipPdf(sheet: DutySheet, emp: Employee, trains: Train[]) {
   const doc = new jsPDF({ unit: "mm", format: "a4" });
   const W = doc.internal.pageSize.getWidth();
 
-// Display-only calculation: flat 8-hour deduction, then subtract rostered hours
+  // Display-only calculation: flat 8-hour deduction, then subtract rostered hours
   const FLAT_DEDUCTION = 8;
   const rawActualSum = sheet.days.reduce((acc, d) => acc + (d.actualHours || 0), 0);
   const displayTotalActual = Math.round((rawActualSum - FLAT_DEDUCTION) * 100) / 100;
@@ -31,32 +28,39 @@ export function exportOtSlipPdf(sheet: DutySheet, emp: Employee, trains: Train[]
   const leftLabels = ["Station", "Name of the Employee", "Token No", "Designation", "PF. No"];
   const leftValues = ["SSE/C&W/SBC", emp.name, emp.tokenNo, emp.designation, emp.pfNumber];
   const rightLabels = [
-    "Total Hours worked", "Actual Rostered Hours", "Statutory Hours",
-    "Extra Hours worked", "OT Payable", "Period from", "Period to",
+    "Total Hours worked",
+    "Actual Rostered Hours",
+    "Statutory Hours",
+    // "Extra Hours worked",
+    "OT Payable",
+    "Period from",
+    "Period to",
   ];
- const rightValues = [
-    fmtHours(displayTotalActual),                                          // was sheet.totalActualHours
+  const rightValues = [
+    fmtHours(displayTotalActual), // was sheet.totalActualHours
     fmtHours(sheet.totalRosteredHours),
     fmtHours(sheet.statutoryHours),
-    fmtHours(displayTotalActual - sheet.totalRosteredHours),                // was sheet.totalActualHours - sheet.totalRosteredHours
-    fmtHours(displayOtPayable),                                            // was sheet.otPayable
+    // fmtHours(displayTotalActual - sheet.totalRosteredHours), // was sheet.totalActualHours - sheet.totalRosteredHours
+    fmtHours(displayOtPayable), // was sheet.otPayable
     fmtDate(sheet.periodStartDate),
     fmtDate(sheet.periodEndDate),
   ];
 
   doc.setFont("helvetica", "normal");
-  const leftLabelX = 14, leftValueX = 58;
-  const rightLabelX = W / 2 + 5, rightValueX = W - 16;
+  const leftLabelX = 14,
+    leftValueX = 52;
+  const rightLabelX = W / 2 + 25,
+    rightValueX = W - 38;
   leftLabels.forEach((l, i) => {
-    doc.text(l, leftLabelX, top + i * 4.6);
-    doc.text(`: ${leftValues[i]}`, leftValueX, top + i * 4.6);
+    doc.text(l, leftLabelX, top + i * 5.5);
+    doc.text(`: ${leftValues[i]}`, leftValueX, top + i * 5.5);
   });
   rightLabels.forEach((l, i) => {
     doc.text(l, rightLabelX, top + i * 4.6);
-    doc.text(rightValues[i], rightValueX, top + i * 4.6, { align: "right" });
+    doc.text(`: ${rightValues[i]}`, rightValueX, top + i * 4.6);
   });
 
-  const afterHeaderY = top + Math.max(leftLabels.length, rightLabels.length) * 4.6 + 3;
+  const afterHeaderY = top + Math.max(leftLabels.length, rightLabels.length) * 5.5 + 3;
 
   // Escort train lines — one per train, left-aligned, stacked
   const paired: Set<string> = new Set();
@@ -65,8 +69,11 @@ export function exportOtSlipPdf(sheet: DutySheet, emp: Employee, trains: Train[]
     if (paired.has(t.id)) continue;
     const p = trains.find((x) => x.id === t.pairedTrainId);
     if (p) {
-      paired.add(t.id); paired.add(p.id);
-      pairs.push(`To escort ${t.category} ${t.trainName.replace(/-SBC.*/, "-SBC")} (${t.trainNumber}/${p.trainNumber}) Express`);
+      paired.add(t.id);
+      paired.add(p.id);
+      pairs.push(
+        `To escort ${t.category} ${t.trainName.replace(/-SBC.*/, "-SBC")} (${t.trainNumber}/${p.trainNumber}) Express`,
+      );
     } else {
       paired.add(t.id);
       pairs.push(`To escort ${t.category} ${t.trainName} (${t.trainNumber}) Express`);
@@ -103,7 +110,12 @@ export function exportOtSlipPdf(sheet: DutySheet, emp: Employee, trains: Train[]
     let actHours: string;
     const isActualRest = d.actualIsRest || d.isRestDay;
 
-    if (hasLeave && hasActualSlots) {
+    const isCR = d.leave === "CR";
+
+    if (hasLeave && hasActualSlots && isCR) {
+      actTime = `${d.leave}\n${d.actualSlots.map(slotToStr).join("\n")}`;
+      actHours = `------\n${fmtHours(d.actualHours)}`;
+    } else if (hasLeave && hasActualSlots) {
       actTime = `${d.leave}\n${d.actualSlots.map(slotToStr).join("\n")}`;
       actHours = fmtHours(d.actualHours);
     } else if (hasLeave) {
@@ -111,7 +123,7 @@ export function exportOtSlipPdf(sheet: DutySheet, emp: Employee, trains: Train[]
       actHours = "------";
     } else if (isActualRest && hasActualSlots) {
       actTime = `REST\n${d.actualSlots.map(slotToStr).join("\n")}`;
-      actHours = fmtHours(d.actualHours);
+      actHours = `------\n${fmtHours(d.actualHours)}`;
     } else if (isActualRest) {
       actTime = "REST";
       actHours = "------";
@@ -121,9 +133,11 @@ export function exportOtSlipPdf(sheet: DutySheet, emp: Employee, trains: Train[]
     }
 
     const extraDisplay =
-      d.extraHours < 0 ? `(-${fmtHours(Math.abs(d.extraHours))})`
-      : d.extraHours > 0 ? fmtHours(d.extraHours)
-      : "";
+      d.extraHours < 0
+        ? `(-${fmtHours(Math.abs(d.extraHours))})`
+        : d.extraHours > 0
+          ? fmtHours(d.extraHours)
+          : "";
 
     return [
       d.dayName.slice(0, 3),
@@ -137,23 +151,35 @@ export function exportOtSlipPdf(sheet: DutySheet, emp: Employee, trains: Train[]
     ];
   });
 
-const foot: any[] = [
-    ["", "", "", "", "", fmtHours(rawActualSum), "", ""],
+ const foot: any[] = [
+    ["", "", "", "", "", { content: fmtHours(rawActualSum), styles: { halign: "right" } }, "", ""],
   ];
-  foot.push(["", "", "", "", "", `-${fmtHours(FLAT_DEDUCTION)}`, "", ""]); // always show -08.00
+  foot.push(["", "", "", "", "", { content: `-${fmtHours(FLAT_DEDUCTION)}`, styles: { halign: "right" } }, "", ""]); // always show -08.00
   foot.push([
     { content: "TOTAL", colSpan: 3, styles: { halign: "center", fontStyle: "bold" } },
     { content: fmtHours(sheet.totalRosteredHours), styles: { fontStyle: "bold", halign: "right" } },
     { content: "OT Payable", styles: { fontStyle: "bold", halign: "center" } },
-    { content: fmtHours(displayTotalActual), styles: { fontStyle: "bold", halign: "right" } },  // was sheet.totalActualHours
-    { content: fmtHours(displayOtPayable), styles: { fontStyle: "bold", halign: "right" } },     // was sheet.otPayable
+    { content: fmtHours(displayTotalActual), styles: { fontStyle: "bold", halign: "right" } }, // was sheet.totalActualHours
+    { content: fmtHours(displayOtPayable), styles: { fontStyle: "bold", halign: "right" } }, // was sheet.otPayable
     "",
   ]);
 
   autoTable(doc, {
     startY: afterHeaderY,
     head: [
-      [{ content: escortText, colSpan: 8, styles: { halign: "left", fontStyle: "bold", fontSize: 8.5, fillColor: 255, textColor: 0 } }],
+      [
+        {
+          content: escortText,
+          colSpan: 8,
+          styles: {
+            halign: "left",
+            fontStyle: "bold",
+            fontSize: 8.5,
+            fillColor: 255,
+            textColor: 0,
+          },
+        },
+      ],
       [
         { content: "Day", rowSpan: 2 },
         { content: "Date", rowSpan: 2 },
@@ -161,24 +187,52 @@ const foot: any[] = [
         { content: "Actual", colSpan: 2, styles: { halign: "center" } },
         { content: "Extra Hours", colSpan: 2, styles: { halign: "center" } },
       ],
-      ["Timings", "Hours", "Timings", "Hours", "Value", "Remarks"],
+      [
+  { content: "Timings", styles: { halign: "center" } },
+  { content: "Hours", styles: { halign: "center" } },
+  { content: "Timings", styles: { halign: "center" } },
+  { content: "Hours", styles: { halign: "center" } },
+  { content: "Value", styles: { halign: "center" } },
+  { content: "Remarks", styles: { halign: "center" } },
+]
     ],
     body,
     foot,
     styles: {
-      fontSize: 8.5, cellPadding: { top: 2.2, right: 1.5, bottom: 2.2, left: 1.5 },
-      valign: "middle", minCellHeight: 9,
-      lineColor: [0, 0, 0], lineWidth: 0.15,
-      fillColor: 255, textColor: 0,
+      fontSize: 8.5,
+      cellPadding: { top: 2.2, right: 1.5, bottom: 2.2, left: 1.5 },
+      valign: "middle",
+      minCellHeight: 9,
+      lineColor: [0, 0, 0],
+      lineWidth: 0.15,
+      fillColor: 255,
+      textColor: 0,
     },
-    headStyles: { fillColor: 255, textColor: 0, fontStyle: "bold", lineColor: [0, 0, 0], lineWidth: 0.15, minCellHeight: 8 },
-    footStyles: { fillColor: 255, textColor: 0, lineColor: [0, 0, 0], lineWidth: 0.15, minCellHeight: 8 },
+    headStyles: {
+      fillColor: 255,
+      textColor: 0,
+      fontStyle: "bold",
+      lineColor: [0, 0, 0],
+      lineWidth: 0.15,
+      minCellHeight: 8,
+    },
+    footStyles: {
+      fillColor: 255,
+      textColor: 0,
+      lineColor: [0, 0, 0],
+      lineWidth: 0.15,
+      minCellHeight: 8,
+    },
     theme: "grid",
     columnStyles: {
-      0: { cellWidth: 13 }, 1: { cellWidth: 22 }, 2: { cellWidth: 38 },
-      3: { cellWidth: 15, halign: "right" }, 4: { cellWidth: 38 },
-      5: { cellWidth: 15, halign: "right" }, 6: { cellWidth: 15, halign: "right" },
-      7: { cellWidth: 26 },
+      0: { cellWidth: 13 },
+      1: { cellWidth: 22 },
+      2: { cellWidth: 30 },
+      3: { cellWidth: 15, halign: "right" },
+      4: { cellWidth: 30 },
+      5: { cellWidth: 15, halign: "right" },
+      6: { cellWidth: 15, halign: "right" },
+      7: { cellWidth: 42 },
     },
     margin: { left: 10, right: 10 },
   });
@@ -233,7 +287,9 @@ export function exportReportPdf(opts: {
 
   const body: any[] = [];
   opts.rows.forEach((r, i) => {
-    const periods = r.sheets.map((s) => `${fmtDate(s.periodStartDate)} to ${fmtDate(s.periodEndDate)}`).join("\n");
+    const periods = r.sheets
+      .map((s) => `${fmtDate(s.periodStartDate)} to ${fmtDate(s.periodEndDate)}`)
+      .join("\n");
     const rost = r.sheets.map((s) => fmtHours(s.totalRosteredHours)).join("\n");
     const act = r.sheets.map((s) => fmtHours(s.totalActualHours)).join("\n");
     const stat = r.sheets.map(() => "104.00").join("\n");
@@ -241,20 +297,48 @@ export function exportReportPdf(opts: {
     body.push([
       i + 1,
       `${r.employee.name}\n${r.employee.designation} / Token: ${r.employee.tokenNo}\nPF: ${r.employee.pfNumber}`,
-      periods, rost, act, stat, ot, "", "",
+      periods,
+      rost,
+      act,
+      stat,
+      ot,
+      "",
+      "",
     ]);
   });
 
   autoTable(doc, {
     startY,
-    head: [["Sl.No", "Employee", "Period(s)", "Rostered", "Actual", "Statutory", "OT Payable", "1½ Times", "2 Times"]],
+    head: [
+      [
+        "Sl.No",
+        "Employee",
+        "Period(s)",
+        "Rostered",
+        "Actual",
+        "Statutory",
+        "OT Payable",
+        "1½ Times",
+        "2 Times",
+      ],
+    ],
     body,
     styles: {
-      fontSize: 7.5, cellPadding: 1.5, valign: "top",
-      lineColor: [0, 0, 0], lineWidth: 0.15,
-      fillColor: 255, textColor: 0,
+      fontSize: 7.5,
+      cellPadding: 1.5,
+      valign: "top",
+      lineColor: [0, 0, 0],
+      lineWidth: 0.15,
+      fillColor: 255,
+      textColor: 0,
     },
-    headStyles: { fillColor: 255, textColor: 0, fontStyle: "bold", lineColor: [0, 0, 0], lineWidth: 0.15 },
+    headStyles: {
+      fillColor: 255,
+      textColor: 0,
+      fontStyle: "bold",
+      lineColor: [0, 0, 0],
+      lineWidth: 0.15,
+    },
     theme: "grid",
     columnStyles: {
       0: { cellWidth: 10, halign: "center" },

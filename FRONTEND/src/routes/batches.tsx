@@ -307,6 +307,7 @@ const BatchesPage = () => {
                       setBatchName("");
 
                       setDays(createDefaultDays());
+                      setShowForm(false);
                     }}
                   >
                     {editingId ? "Update Batch" : "Save Batch"}
