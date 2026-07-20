@@ -2,7 +2,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { v4 as uuid } from "uuid";
 import { api } from "@/lib/api";
-import type { DutySheet, Employee, Train } from "@/lib/types";
+import type { DutySheet, Employee, Train, Batch } from "@/lib/types";
 import { recalcSheet } from "@/lib/ot-utils";
 
 interface DataCtx {
@@ -23,6 +23,10 @@ interface DataCtx {
   restoreTrain: (id: string) => Promise<void>;
   saveDutySheet: (s: DutySheet) => Promise<void>;
   deleteDutySheet: (id: string) => Promise<void>;
+  batches: Batch[];
+  saveBatch: (data: { id?: string; name: string; days: Batch["days"] }) => Promise<Batch>;
+  softDeleteBatch: (id: string) => Promise<void>;
+  restoreBatch: (id: string) => Promise<void>;
   resetDemo: () => Promise<void>;
   refresh: () => Promise<void>;
 }
@@ -35,19 +39,22 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const [dutySheets, setDutySheets] = useState<DutySheet[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+const [batches, setBatches] = useState<Batch[]>([]);
 
   const loadData = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
-      const [emps, trs, ds] = await Promise.all([
+      const [emps, trs, ds, bts] = await Promise.all([
         api.getEmployees(),
         api.getTrains(),
         api.getDutySheets(),
+        api.getBatches(),
       ]);
       setEmployees(emps);
       setTrains(trs);
       setDutySheets(ds);
+      setBatches(bts);
     } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to load data";
       setError(message);
@@ -119,6 +126,26 @@ export function DataProvider({ children }: { children: ReactNode }) {
     setTrains((prev) => prev.map((t) => t.id === id ? updated : t));
   }, []);
 
+  // ============ BATCH OPERATIONS ============
+  const saveBatch: DataCtx["saveBatch"] = useCallback(async (data) => {
+    const saved = await api.saveBatch(data);
+    setBatches((prev) => {
+      const exists = prev.some((b) => b.id === saved.id);
+      return exists ? prev.map((b) => (b.id === saved.id ? saved : b)) : [...prev, saved];
+    });
+    return saved;
+  }, []);
+
+  const softDeleteBatch: DataCtx["softDeleteBatch"] = useCallback(async (id) => {
+    const updated = await api.softDeleteBatch(id);
+    setBatches((prev) => prev.map((b) => (b.id === id ? updated : b)));
+  }, []);
+
+  const restoreBatch: DataCtx["restoreBatch"] = useCallback(async (id) => {
+    const updated = await api.restoreBatch(id);
+    setBatches((prev) => prev.map((b) => (b.id === id ? updated : b)));
+  }, []);
+
   // ============ DUTY SHEET OPERATIONS ============
   const saveDutySheet: DataCtx["saveDutySheet"] = useCallback(async (s) => {
     const recalced = recalcSheet({ ...s, updatedAt: new Date().toISOString() });
@@ -144,6 +171,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
     employees,
     trains,
     dutySheets,
+    batches, 
     loading,
     error,
     addEmployee,
@@ -158,12 +186,16 @@ export function DataProvider({ children }: { children: ReactNode }) {
     restoreTrain,
     saveDutySheet,
     deleteDutySheet,
+    saveBatch,        // <-- new
+    softDeleteBatch,  // <-- new
+    restoreBatch,
     resetDemo,
     refresh,
   }), [
     employees,
     trains,
     dutySheets,
+    batches, 
     loading,
     error,
     addEmployee,
@@ -178,6 +210,9 @@ export function DataProvider({ children }: { children: ReactNode }) {
     restoreTrain,
     saveDutySheet,
     deleteDutySheet,
+     saveBatch,        // <-- new
+    softDeleteBatch,  // <-- new
+    restoreBatch,
     resetDemo,
     refresh,
   ]);

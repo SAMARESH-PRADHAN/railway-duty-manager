@@ -10,6 +10,7 @@ export interface Employee {
   tokenNo: string;
   designation: Designation;
   presentBatch: string;
+  batchId?: string;
   groupType: GroupType;
   address: string;
   phone: string;
@@ -76,4 +77,19 @@ export interface DutySheet {
   isDraft?: boolean;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface BatchRosterDay {
+  dayNumber: number;       // 1–14
+  isRestDay: boolean;
+  slots: TimeSlot[];
+}
+
+export interface Batch {
+  id: string;
+  name: string;
+  isDeleted: boolean;
+  createdAt: string;
+  updatedAt: string;
+  days: BatchRosterDay[];  // always 14 entries, dayNumber 1..14
 }

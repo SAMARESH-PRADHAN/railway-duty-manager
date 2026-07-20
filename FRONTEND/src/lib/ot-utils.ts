@@ -1,5 +1,6 @@
 import { addDays, format, parseISO } from "date-fns";
 import type { DutyDay, DutySheet, TimeSlot, LeaveType } from "./types";
+import type { Batch } from "./types";
 
 export const LEAVE_OPTIONS: LeaveType[] = ["None", "CR", "CL", "LAP", "NH", "PL", "SCL", "Sick"];
 
@@ -47,29 +48,80 @@ export function sumSlots(slots: TimeSlot[]): number {
   return Math.round(slots.reduce((a, s) => a + slotHours(s), 0) * 100) / 100;
 }
 
-export function generate14Days(startISO: string, designation?: string): DutyDay[] {
-  const start = parseISO(startISO);
-  const slot = defaultRosterSlot(designation);
-  const days: DutyDay[] = [];
-  for (let i = 0; i < 14; i++) {
-    const d = addDays(start, i);
-    const dayName = format(d, "EEEE");
-    const isRest = dayName === "Sunday";
-    days.push({
-      date: format(d, "yyyy-MM-dd"),
-      dayName,
-      isRestDay: isRest,
-      actualIsRest: isRest,
-      rosteredSlots: isRest ? [] : [{ ...slot }],
-      rosteredHours: isRest ? 0 : DEFAULT_SHIFT_HOURS,
-      actualSlots: isRest ? [] : [{ ...slot }],
-      actualHours: isRest ? 0 : DEFAULT_SHIFT_HOURS,
-      extraHours: 0,
-      description: "",
-      leave: "None",
-    });
-  }
-  return days;
+// export function generate14Days(startISO: string, designation?: string): DutyDay[] {
+//   const start = parseISO(startISO);
+//   const slot = defaultRosterSlot(designation);
+//   const days: DutyDay[] = [];
+//   for (let i = 0; i < 14; i++) {
+//     const d = addDays(start, i);
+//     const dayName = format(d, "EEEE");
+//     const isRest = dayName === "Sunday";
+//     days.push({
+//       date: format(d, "yyyy-MM-dd"),
+//       dayName,
+//       isRestDay: isRest,
+//       actualIsRest: isRest,
+//       rosteredSlots: isRest ? [] : [{ ...slot }],
+//       rosteredHours: isRest ? 0 : DEFAULT_SHIFT_HOURS,
+//       actualSlots: isRest ? [] : [{ ...slot }],
+//       actualHours: isRest ? 0 : DEFAULT_SHIFT_HOURS,
+//       extraHours: 0,
+//       description: "",
+//       leave: "None",
+//     });
+//   }
+//   return days;
+// }
+
+export function generate14Days(
+    startISO: string,
+    batch?: Batch
+): DutyDay[] {
+
+    const start = parseISO(startISO);
+
+    const days: DutyDay[] = [];
+
+    for (let i = 0; i < 14; i++) {
+
+        const roster = batch?.days.find(
+            d => d.dayNumber === i + 1
+        );
+
+        const rosterSlots =
+            roster?.slots?.map(s => ({ ...s })) ?? [];
+
+        const rosterHours = sumSlots(rosterSlots);
+
+        days.push({
+
+            date: format(addDays(start, i), "yyyy-MM-dd"),
+
+            dayName: format(addDays(start, i), "EEEE"),
+
+            isRestDay: roster?.isRestDay ?? false,
+
+            actualIsRest: roster?.isRestDay ?? false,
+
+            rosteredSlots: rosterSlots,
+
+            rosteredHours: rosterHours,
+
+            actualSlots: rosterSlots.map(s => ({ ...s })),
+
+            actualHours: rosterHours,
+
+            extraHours: 0,
+
+            description: "",
+
+            leave: "None"
+
+        });
+
+    }
+
+    return days;
 }
 
 export function leaveDeduction(l?: LeaveType): number {

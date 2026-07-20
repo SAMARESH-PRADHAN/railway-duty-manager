@@ -98,3 +98,44 @@ DROP TRIGGER IF EXISTS trg_duty_sheets_updated_at ON duty_sheets;
 CREATE TRIGGER trg_duty_sheets_updated_at
   BEFORE UPDATE ON duty_sheets
   FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+
+
+
+-- ========================================
+-- BATCHES (Roster Duty Set)
+-- ========================================
+CREATE TABLE IF NOT EXISTS batches (
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name        TEXT NOT NULL UNIQUE,       -- e.g. 'A BATCH', 'VANDE BHARAT'
+  is_deleted  BOOLEAN NOT NULL DEFAULT FALSE,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_batches_is_deleted ON batches (is_deleted);
+
+-- ========================================
+-- BATCH ROSTER DAYS
+-- One row per (batch, day_number 1..14). Holds the default rostered
+-- timings for that day of the 14-day cycle, applied to any employee
+-- in this batch when a new duty sheet is generated.
+-- slots stored as JSONB: [{ "from": "08:00", "to": "16:00" }, ...]
+-- ========================================
+CREATE TABLE IF NOT EXISTS batch_roster_days (
+  id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  batch_id     UUID NOT NULL REFERENCES batches(id) ON DELETE CASCADE,
+  day_number   INTEGER NOT NULL CHECK (day_number BETWEEN 1 AND 14),
+  is_rest_day  BOOLEAN NOT NULL DEFAULT FALSE,
+  slots        JSONB NOT NULL DEFAULT '[]',
+  UNIQUE (batch_id, day_number)
+);
+
+CREATE INDEX IF NOT EXISTS idx_batch_roster_days_batch_id ON batch_roster_days (batch_id);
+
+-- Link employees to a batch (nullable = falls back to designation-based default)
+ALTER TABLE employees ADD COLUMN IF NOT EXISTS batch_id UUID REFERENCES batches(id);
+
+DROP TRIGGER IF EXISTS trg_batches_updated_at ON batches;
+CREATE TRIGGER trg_batches_updated_at
+  BEFORE UPDATE ON batches
+  FOR EACH ROW EXECUTE FUNCTION set_updated_at();

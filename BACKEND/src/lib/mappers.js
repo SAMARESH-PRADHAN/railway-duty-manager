@@ -10,6 +10,7 @@ function mapEmployee(row) {
     tokenNo: row.token_no,
     designation: row.designation,
     presentBatch: row.present_batch,
+    batchId: row.batch_id ?? undefined,  
     groupType: row.group_type,
     address: row.address,
     phone: row.phone,
@@ -59,4 +60,27 @@ function mapDutySheet(row) {
   };
 }
 
-module.exports = { mapEmployee, mapTrain, mapDutySheet };
+function mapBatch(row, rosterDays = []) {
+  if (!row) return null;
+  return {
+    id: row.id,
+    name: row.name,
+    isDeleted: row.is_deleted,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+    days: rosterDays
+      .sort((a, b) => a.day_number - b.day_number)
+      .map(mapBatchRosterDay),
+  };
+}
+
+function mapBatchRosterDay(row) {
+  if (!row) return null;
+  return {
+    dayNumber: row.day_number,
+    isRestDay: row.is_rest_day,
+    slots: row.slots ?? [],
+  };
+}
+
+module.exports = { mapEmployee, mapTrain, mapDutySheet, mapBatch, mapBatchRosterDay };

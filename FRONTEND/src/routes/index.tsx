@@ -3,6 +3,7 @@ import { useData } from "@/context/DataContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Users, Train as TrainIcon, ClipboardList, Clock } from "lucide-react";
 import { fmtDate, fmtHours } from "@/lib/ot-utils";
+import BatchesPage from "./batches";
 
 export default function Dashboard() {
 

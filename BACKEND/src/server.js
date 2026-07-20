@@ -1,5 +1,6 @@
 require("dotenv").config();
 
+const batchesRoutes = require("./routes/batches.routes");
 const express = require("express");
 const cors = require("cors");
 
@@ -24,6 +25,7 @@ app.use("/api/employees", employeesRoutes);
 app.use("/api/trains", trainsRoutes);
 app.use("/api/duty-sheets", dutySheetsRoutes);
 app.use("/api/seed", seedRoutes);
+app.use("/api/batches", batchesRoutes);
 
 // Central error handler
 app.use((err, req, res, next) => {

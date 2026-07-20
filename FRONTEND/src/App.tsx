@@ -11,6 +11,7 @@ import TrainsPage from "@/routes/trains";
 import DutyPage from "@/routes/duty";
 import RecordsPage from "@/routes/records";
 import ReportsPage from "@/routes/reports";
+import BatchesPage from "@/routes/batches";
 
 function NotFound() {
   return (
@@ -54,6 +55,10 @@ export default function App() {
               <Route path="/records" element={<RecordsPage />} />
               <Route path="/reports" element={<ReportsPage />} />
               <Route path="*" element={<NotFound />} />
+              <Route
+    path="/batches"
+    element={<BatchesPage />}
+/>
             </Routes>
             <Toaster richColors position="top-right" />
           </AppLayout>

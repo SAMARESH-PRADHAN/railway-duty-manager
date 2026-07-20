@@ -1,5 +1,5 @@
 // src/lib/api.ts
-import type { Employee, Train, DutySheet } from "./types";
+import type { Employee, Train, DutySheet, Batch } from "./types";
 
 const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:3000/api";
 
@@ -181,6 +181,57 @@ export const api = {
     }
   },
 
+  // ============ BATCHES ============
+  async getBatches(includeDeleted = false): Promise<Batch[]> {
+    const res = await fetch(`${API_BASE}/batches?includeDeleted=${includeDeleted}`);
+    if (!res.ok) throw new Error("Failed to fetch batches");
+    return res.json();
+  },
+
+  async getBatch(id: string): Promise<Batch> {
+    const res = await fetch(`${API_BASE}/batches/${id}`);
+    if (!res.ok) {
+      const error = await res.json();
+      throw new Error(error.error || "Failed to fetch batch");
+    }
+    return res.json();
+  },
+
+  async saveBatch(data: { id?: string; name: string; days: Batch["days"] }): Promise<Batch> {
+    const res = await fetch(`${API_BASE}/batches`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    });
+    if (!res.ok) {
+      const error = await res.json();
+      throw new Error(error.error || "Failed to save batch");
+    }
+    return res.json();
+  },
+
+  async softDeleteBatch(id: string): Promise<Batch> {
+    const res = await fetch(`${API_BASE}/batches/${id}/soft-delete`, {
+      method: "PATCH",
+    });
+    if (!res.ok) {
+      const error = await res.json();
+      throw new Error(error.error || "Failed to delete batch");
+    }
+    return res.json();
+  },
+
+  async restoreBatch(id: string): Promise<Batch> {
+    const res = await fetch(`${API_BASE}/batches/${id}/restore`, {
+      method: "PATCH",
+    });
+    if (!res.ok) {
+      const error = await res.json();
+      throw new Error(error.error || "Failed to restore batch");
+    }
+    return res.json();
+  },
+  
   // ============ SEED / RESET ============
   async resetDemo(): Promise<{ employees: number; trains: number; dutySheets: number }> {
     const res = await fetch(`${API_BASE}/seed/reset`, {
