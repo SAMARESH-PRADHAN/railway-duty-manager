@@ -58,7 +58,7 @@ const DESIGNATIONS = ["Asst", "Tech-I", "Tech-II", "Tech-III", "Sr.Tech", "Helpe
 const GROUPS = ["A", "B", "C", "D", "E", "F"];
 
 /** Available batch assignments */
-const BATCHES = ["A BATCH", "B BATCH", "RAJDHANI", "SICKLINE/IOH", "VANDE BHARAT"];
+// const BATCHES = ["A BATCH", "B BATCH", "RAJDHANI", "SICKLINE/IOH", "VANDE BHARAT"];
 
 /** Initial empty form state for add/edit dialog */
 const emptyForm: Partial<Employee> = {
@@ -66,7 +66,7 @@ const emptyForm: Partial<Employee> = {
   pfNumber: "", 
   tokenNo: "", 
   designation: "Tech-I", 
-  presentBatch: "A BATCH",
+  presentBatch: "",
   groupType: "A", 
   address: "", 
   phone: "", 
@@ -86,6 +86,7 @@ export default function EmployeesPage() {
   /** Get data and CRUD functions from context */
   const { 
     employees, 
+    batches,
     addEmployee, 
     updateEmployee, 
     toggleEmployeeStatus, 
@@ -330,7 +331,15 @@ export default function EmployeesPage() {
         
         // Extract optional fields with defaults
         const designation = getValue(r, ["Designation"]) || "Tech-I";
-        const presentBatch = getValue(r, ["Batch", "Present Batch"]) || "A BATCH";
+        const importedBatch = getValue(r, ["Batch", "Present Batch"]);
+
+const batchExists = batches.some(
+  (b) => b.name === importedBatch
+);
+
+const presentBatch = batchExists
+  ? importedBatch
+  : "";
         const groupRaw = getValue(r, ["Group", "Group Type"]) || "A";
         const groupType = groupRaw.replace(/group\s*/i, "").trim().toUpperCase().slice(0, 1) || "A";
         
@@ -635,13 +644,24 @@ export default function EmployeesPage() {
                 options={DESIGNATIONS.map((d) => ({ value: d, label: d }))}
               />
             </Field>
-            <Field label="Present Batch">
+            {/* <Field label="Present Batch">
               <Combobox
                 value={form.presentBatch as string}
                 onChange={(v) => setForm({ ...form, presentBatch: v })}
                 options={BATCHES.map((b) => ({ value: b, label: b }))}
               />
-            </Field>
+            </Field> */}
+
+            <Field label="Present Batch">
+  <Combobox
+    value={form.presentBatch as string}
+    onChange={(v) => setForm({ ...form, presentBatch: v })}
+   options={batches.map((b) => ({
+        value: b.name,
+        label: b.name,
+      }))}
+  />
+</Field>
             <Field label="Group Type">
               <Combobox
                 value={form.groupType as string}

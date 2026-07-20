@@ -1,5 +1,5 @@
 import { Link, useLocation } from "react-router-dom";
-import { LayoutDashboard, Users, Train as TrainIcon, ClipboardList, FileText, BarChart3, Menu, X, RefreshCw } from "lucide-react";
+import { LayoutDashboard, Users, Train as TrainIcon, ClipboardList, FileText, BarChart3, Menu, X, RefreshCw, Calendar, CalendarDays } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
 import { useData } from "@/context/DataContext";
 import { Button } from "@/components/ui/button";
@@ -13,6 +13,7 @@ const nav = [
   { to: "/duty", label: "Extra Hour Slip", icon: ClipboardList },
   { to: "/records", label: "Duty Records", icon: FileText },
   { to: "/reports", label: "Reports", icon: BarChart3 },
+   { to: "/batches", label: "Roster Duty Set", icon: CalendarDays },
 ];
 
 export function AppLayout({ children }: { children: ReactNode }) {
