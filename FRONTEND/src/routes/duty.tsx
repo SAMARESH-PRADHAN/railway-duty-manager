@@ -278,11 +278,10 @@ export default function DutyPage() {
     setStartDate(iso);
 
     if (!employeeBatch) {
-      toast.error("Selected employee has no roster batch assigned.");
-      return;
+      toast.warning("No roster batch found — using default duty timings.");
     }
 
-    setDays(generate14Days(iso, employeeBatch));
+    setDays(generate14Days(iso, employeeBatch, emp?.designation));
   };
 
   const handleStartDateChange = (iso: string) => {
@@ -406,14 +405,13 @@ export default function DutyPage() {
             )}
             <div className="flex justify-end">
               {employeeId && !employeeBatch && (
-                <div className="rounded-md border border-red-300 bg-red-50 p-3 text-sm text-red-700">
-                  No roster schedule found for Present Batch
-                  <strong> "{emp?.presentBatch}" </strong>. Please create a roster for this batch
-                  first.
+                <div className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-700">
+                  No roster batch found for Present Batch <strong>"{emp?.presentBatch}"</strong>.
+                  Default roster timings will be used instead.
                 </div>
               )}
               <Button
-                disabled={!employeeId || !employeeBatch}
+                disabled={!employeeId}
                 onClick={() => setStep(2)}
                 className="bg-[#0b2545] hover:bg-[#0b2545]/90"
               >
@@ -1009,27 +1007,29 @@ function CopyFromPastDuty({
   const activeSheet = past.find((s) => s.id === selectedSheet);
   const noHistory = past.length === 0;
 
-  const applyCopy = () => {
-    if (!activeSheet || days.length === 0) return;
-    const next = days.map((d, i) => {
-      const src = activeSheet.days[i];
-      if (!src) return d;
-      return {
-        ...d,
-        isRestDay: src.isRestDay,
-        rosteredSlots: src.rosteredSlots.map((s) => ({ ...s })),
-        rosteredHours: src.rosteredHours,
-        actualSlots: src.rosteredSlots.map((s) => ({ ...s })),
-        actualHours: src.rosteredHours,
-        extraHours: 0,
-      };
-    });
-    setDays(next);
-    toast.success("Roster copied from past duty sheet");
-    setSelectedSheet("");
-    onDone?.();
-  };
-
+ const applyCopy = () => {
+  if (!activeSheet || days.length === 0) return;
+  const next = days.map((d, i) => {
+    const src = activeSheet.days[i];
+    if (!src) return d;
+    return {
+      ...d,
+      isRestDay: src.isRestDay,
+      actualIsRest: src.actualIsRest,
+      rosteredSlots: src.rosteredSlots.map((s) => ({ ...s })),
+      rosteredHours: src.rosteredHours,
+      actualSlots: src.actualSlots.map((s) => ({ ...s })),   // ✅ copy actual, not rostered
+      actualHours: src.actualHours,                           // ✅ copy actual, not rostered
+      leave: src.leave ?? "None",                             // ✅ carry over leave too, since it drives actualHours
+      description: src.description ?? "",                     // optional: carry over notes like CR references
+      extraHours: Math.round((src.actualHours - src.rosteredHours) * 100) / 100,
+    };
+  });
+  setDays(next);
+  toast.success("Roster and actual data copied from past duty sheet");
+  setSelectedSheet("");
+  onDone?.();
+};
   return (
     <Card>
       <CardHeader>
