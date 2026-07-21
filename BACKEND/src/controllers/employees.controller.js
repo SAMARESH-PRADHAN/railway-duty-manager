@@ -67,18 +67,34 @@ async function toggleEmployeeStatus(req, res) {
   res.json(mapEmployee(row));
 }
 
-async function softDeleteEmployee(req, res) {
-  const { id } = req.params;
-  const [row] = await sql`UPDATE employees SET is_deleted = TRUE WHERE id = ${id} RETURNING *`;
-  if (!row) return res.status(404).json({ error: "Employee not found" });
-  res.json(mapEmployee(row));
-}
+// async function softDeleteEmployee(req, res) {
+//   const { id } = req.params;
+//   const [row] = await sql`UPDATE employees SET is_deleted = TRUE WHERE id = ${id} RETURNING *`;
+//   if (!row) return res.status(404).json({ error: "Employee not found" });
+//   res.json(mapEmployee(row));
+// }
 
-async function restoreEmployee(req, res) {
+// async function restoreEmployee(req, res) {
+//   const { id } = req.params;
+//   const [row] = await sql`UPDATE employees SET is_deleted = FALSE WHERE id = ${id} RETURNING *`;
+//   if (!row) return res.status(404).json({ error: "Employee not found" });
+//   res.json(mapEmployee(row));
+// }
+async function deleteEmployee(req, res) {
   const { id } = req.params;
-  const [row] = await sql`UPDATE employees SET is_deleted = FALSE WHERE id = ${id} RETURNING *`;
-  if (!row) return res.status(404).json({ error: "Employee not found" });
-  res.json(mapEmployee(row));
+
+  const [existing] = await sql`SELECT id FROM employees WHERE id = ${id}`;
+  if (!existing) return res.status(404).json({ error: "Employee not found" });
+
+  const [{ count }] = await sql`SELECT COUNT(*)::int AS count FROM duty_sheets WHERE employee_id = ${id}`;
+  if (count > 0) {
+    return res.status(409).json({
+      error: `Cannot delete — this employee has ${count} duty sheet(s). Delete those first, or contact an admin.`,
+    });
+  }
+
+  await sql`DELETE FROM employees WHERE id = ${id}`;
+  res.status(204).send();
 }
 
 module.exports = {
@@ -86,6 +102,7 @@ module.exports = {
   createEmployee,
   updateEmployee,
   toggleEmployeeStatus,
-  softDeleteEmployee,
-  restoreEmployee,
+  // softDeleteEmployee, // keep — used elsewhere, harmless to leave
+  // restoreEmployee,     // keep — same reason
+  deleteEmployee,       // add
 };

@@ -210,6 +210,14 @@ export const api = {
     return res.json();
   },
 
+  async deleteEmployee(id: string): Promise<void> {
+  const res = await fetch(`${API_BASE}/employees/${id}`, { method: "DELETE" });
+  if (!res.ok) {
+    const error = await res.json();
+    throw new Error(error.error || "Failed to delete employee");
+  }
+},
+
   async softDeleteBatch(id: string): Promise<Batch> {
     const res = await fetch(`${API_BASE}/batches/${id}/soft-delete`, {
       method: "PATCH",

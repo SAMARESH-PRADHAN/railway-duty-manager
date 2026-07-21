@@ -13,6 +13,7 @@ interface DataCtx {
   error: string | null;
   addEmployee: (e: Omit<Employee, "id" | "slNo" | "createdAt" | "updatedAt" | "isDeleted" | "status"> & Partial<Pick<Employee, "status">>) => Promise<Employee>;
   updateEmployee: (id: string, patch: Partial<Employee>) => Promise<void>;
+  deleteEmployee: (id: string) => Promise<void>;
   toggleEmployeeStatus: (id: string) => Promise<void>;
   softDeleteEmployee: (id: string) => Promise<void>;
   restoreEmployee: (id: string) => Promise<void>;
@@ -83,6 +84,10 @@ const [batches, setBatches] = useState<Batch[]>([]);
     const updated = await api.updateEmployee(id, patch);
     setEmployees((prev) => prev.map((e) => e.id === id ? updated : e));
   }, []);
+  const deleteEmployee: DataCtx["deleteEmployee"] = useCallback(async (id) => {
+  await api.deleteEmployee(id);
+  setEmployees((prev) => prev.filter((e) => e.id !== id));
+}, []);
 
   const toggleEmployeeStatus: DataCtx["toggleEmployeeStatus"] = useCallback(async (id) => {
     const updated = await api.toggleEmployeeStatus(id);
@@ -175,6 +180,7 @@ const [batches, setBatches] = useState<Batch[]>([]);
     loading,
     error,
     addEmployee,
+    deleteEmployee,
     updateEmployee,
     toggleEmployeeStatus,
     softDeleteEmployee,

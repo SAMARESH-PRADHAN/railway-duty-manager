@@ -89,6 +89,7 @@ export default function EmployeesPage() {
     batches,
     addEmployee, 
     updateEmployee, 
+    deleteEmployee, // add
     toggleEmployeeStatus, 
     softDeleteEmployee, 
     restoreEmployee 
@@ -334,10 +335,10 @@ export default function EmployeesPage() {
         const importedBatch = getValue(r, ["Batch", "Present Batch"]);
 
 const batchExists = batches.some(
-  (b) => b.name === importedBatch
+  (b) => b.name.trim().toLowerCase() === importedBatch.trim().toLowerCase()
 );
 
-const presentBatch = batchExists
+const presentBatch = batchExists 
   ? importedBatch
   : "";
         const groupRaw = getValue(r, ["Group", "Group Type"]) || "A";
@@ -399,23 +400,22 @@ const presentBatch = batchExists
    * - Marks as deleted but keeps in database
    * - Can be restored later
    */
-  const handleSoftDelete = async (id: string, name: string) => {
-    const ok = await confirm({ 
-      title: `Archive ${name}?`, 
-      description: "This is a soft delete — the record can be restored later.", 
-      confirmText: "Archive", 
-      destructive: true 
-    });
-    if (ok) {
-      try {
-        await softDeleteEmployee(id);
-        toast.success("Archived");
-      } catch (err) {
-        toast.error(err instanceof Error ? err.message : "Failed to archive employee");
-      }
+  const handleDelete = async (id: string, name: string) => {
+  const ok = await confirm({
+    title: `Permanently delete ${name}?`,
+    description: "This cannot be undone. This will remove the employee's data from the database completely.",
+    confirmText: "Delete",
+    destructive: true,
+  });
+  if (ok) {
+    try {
+      await deleteEmployee(id);
+      toast.success("Employee permanently deleted");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to delete employee");
     }
-  };
-
+  }
+};
   /**
    * Restore archived employee
    * - Sets isDeleted back to false
@@ -462,9 +462,9 @@ const presentBatch = batchExists
           <Button variant="ghost" size="icon" onClick={() => setHelpOpen(true)} title="Import format">
             <HelpCircle className="h-4 w-4" />
           </Button>
-          <Button variant="outline" onClick={() => setShowArchived((s) => !s)}>
+          {/* <Button variant="outline" onClick={() => setShowArchived((s) => !s)}>
             {showArchived ? "Show Active" : "Show Archived"}
-          </Button>
+          </Button> */}
           <Button onClick={openAdd} className="bg-[#0b2545] hover:bg-[#0b2545]/90">
             <Plus className="h-4 w-4 mr-1" /> Add Employee
           </Button>
@@ -589,7 +589,7 @@ const presentBatch = batchExists
                             <Button size="sm" variant="ghost" onClick={() => handleToggleStatus(e.id, e.name)}>
                               <Power className="h-4 w-4" />
                             </Button>
-                            <Button size="sm" variant="ghost" onClick={() => handleSoftDelete(e.id, e.name)}>
+                            <Button size="sm" variant="ghost" onClick={() => handleDelete(e.id, e.name)}>
                               <Trash2 className="h-4 w-4 text-rose-600" />
                             </Button>
                           </>
