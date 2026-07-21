@@ -75,11 +75,11 @@ export function sumSlots(slots: TimeSlot[]): number {
 
 export function generate14Days(
     startISO: string,
-    batch?: Batch
+    batch?: Batch,
+    designation?: string
 ): DutyDay[] {
 
     const start = parseISO(startISO);
-
     const days: DutyDay[] = [];
 
     for (let i = 0; i < 14; i++) {
@@ -88,8 +88,19 @@ export function generate14Days(
             d => d.dayNumber === i + 1
         );
 
-        const rosterSlots =
-            roster?.slots?.map(s => ({ ...s })) ?? [];
+        let rosterSlots: TimeSlot[];
+        let isRest: boolean;
+
+        if (batch) {
+            // Batch assigned: use its slots for this day (may legitimately be empty on a rest day)
+            rosterSlots = roster?.slots?.map(s => ({ ...s })) ?? [];
+            isRest = roster?.isRestDay ?? false;
+        } else {
+            // No batch: fall back to designation-based default 8-hour shift
+            const dayName = format(addDays(start, i), "EEEE");
+            isRest = dayName === "Sunday";
+            rosterSlots = isRest ? [] : [defaultRosterSlot(designation)];
+        }
 
         const rosterHours = sumSlots(rosterSlots);
 
@@ -99,9 +110,9 @@ export function generate14Days(
 
             dayName: format(addDays(start, i), "EEEE"),
 
-            isRestDay: roster?.isRestDay ?? false,
+            isRestDay: isRest,
 
-            actualIsRest: roster?.isRestDay ?? false,
+            actualIsRest: isRest,
 
             rosteredSlots: rosterSlots,
 
