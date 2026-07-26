@@ -108,7 +108,7 @@ export function exportOtSlipPdf(sheet: DutySheet, emp: Employee, trains: Train[]
     // Actual column: show REST + timing stacked if both are present
     let actTime: string;
     let actHours: string;
-    const isActualRest = d.actualIsRest || d.isRestDay;
+    const isActualRest = d.actualIsRest;
 
     const isCR = d.leave === "CR";
 
@@ -120,7 +120,7 @@ export function exportOtSlipPdf(sheet: DutySheet, emp: Employee, trains: Train[]
       actHours = fmtHours(d.actualHours);
     } else if (hasLeave) {
       actTime = d.leave as string;
-      actHours = "------";
+      actHours = isCR ? "------" : fmtHours(d.actualHours);
     } else if (isActualRest && hasActualSlots) {
       actTime = `REST\n${d.actualSlots.map(slotToStr).join("\n")}`;
       actHours = `------\n${fmtHours(d.actualHours)}`;
