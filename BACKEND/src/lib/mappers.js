@@ -66,6 +66,7 @@ function mapBatch(row, rosterDays = []) {
     id: row.id,
     name: row.name,
     isDeleted: row.is_deleted,
+    rosterConfigured: row.roster_configured, // add
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     days: rosterDays

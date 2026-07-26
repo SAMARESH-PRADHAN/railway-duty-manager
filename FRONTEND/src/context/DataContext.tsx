@@ -11,6 +11,7 @@ interface DataCtx {
   dutySheets: DutySheet[];
   loading: boolean;
   error: string | null;
+  findOrCreateBatch: (name: string) => Promise<Batch>;
   addEmployee: (e: Omit<Employee, "id" | "slNo" | "createdAt" | "updatedAt" | "isDeleted" | "status"> & Partial<Pick<Employee, "status">>) => Promise<Employee>;
   updateEmployee: (id: string, patch: Partial<Employee>) => Promise<void>;
   deleteEmployee: (id: string) => Promise<void>;
@@ -132,6 +133,16 @@ const [batches, setBatches] = useState<Batch[]>([]);
   }, []);
 
   // ============ BATCH OPERATIONS ============
+  const findOrCreateBatch: DataCtx["findOrCreateBatch"] = useCallback(async (name) => {
+  const existing = batches.find(
+    (b) => b.name.trim().toLowerCase() === name.trim().toLowerCase(),
+  );
+  if (existing) return existing;
+  const created = await api.findOrCreateBatch(name);
+  setBatches((prev) => [...prev, created]);
+  return created;
+}, [batches]);
+
   const saveBatch: DataCtx["saveBatch"] = useCallback(async (data) => {
     const saved = await api.saveBatch(data);
     setBatches((prev) => {
@@ -179,6 +190,7 @@ const [batches, setBatches] = useState<Batch[]>([]);
     batches, 
     loading,
     error,
+    findOrCreateBatch,
     addEmployee,
     deleteEmployee,
     updateEmployee,

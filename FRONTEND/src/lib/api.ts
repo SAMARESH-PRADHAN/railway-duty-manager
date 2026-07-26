@@ -182,6 +182,20 @@ export const api = {
   },
 
   // ============ BATCHES ============
+
+  async findOrCreateBatch(name: string): Promise<Batch> {
+  const res = await fetch(`${API_BASE}/batches/find-or-create`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ name }),
+  });
+  if (!res.ok) {
+    const error = await res.json();
+    throw new Error(error.error || "Failed to create batch");
+  }
+  return res.json();
+},
+
   async getBatches(includeDeleted = false): Promise<Batch[]> {
     const res = await fetch(`${API_BASE}/batches?includeDeleted=${includeDeleted}`);
     if (!res.ok) throw new Error("Failed to fetch batches");

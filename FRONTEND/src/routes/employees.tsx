@@ -39,7 +39,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  DialogDescription,
+} from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Combobox } from "@/components/Combobox";
 import { useConfirm } from "@/components/ConfirmProvider";
@@ -62,15 +69,15 @@ const GROUPS = ["A", "B", "C", "D", "E", "F"];
 
 /** Initial empty form state for add/edit dialog */
 const emptyForm: Partial<Employee> = {
-  name: "", 
-  pfNumber: "", 
-  tokenNo: "", 
-  designation: "Tech-I", 
+  name: "",
+  pfNumber: "",
+  tokenNo: "",
+  designation: "Tech-I",
   presentBatch: "",
-  groupType: "A", 
-  address: "", 
-  phone: "", 
-  dateOfBirth: "", 
+  groupType: "A",
+  address: "",
+  phone: "",
+  dateOfBirth: "",
   dateOfJoining: "",
 };
 
@@ -84,36 +91,37 @@ export default function EmployeesPage() {
   // ============================================================
 
   /** Get data and CRUD functions from context */
-  const { 
-    employees, 
+  const {
+    employees,
     batches,
-    addEmployee, 
-    updateEmployee, 
+    addEmployee,
+    updateEmployee,
     deleteEmployee, // add
-    toggleEmployeeStatus, 
-    softDeleteEmployee, 
-    restoreEmployee 
+    toggleEmployeeStatus,
+    softDeleteEmployee,
+    restoreEmployee,
+    findOrCreateBatch,
   } = useData();
-  
+
   /** Confirmation dialog hook */
   const confirm = useConfirm();
 
   // --- Search & Filter State ---
-  const [q, setQ] = useState("");                          // Search query
-  const [fDesig, setFDesig] = useState<string>("all");     // Filter by designation
-  const [fGroup, setFGroup] = useState<string>("all");     // Filter by group
-  const [fStatus, setFStatus] = useState<string>("all");   // Filter by status
+  const [q, setQ] = useState(""); // Search query
+  const [fDesig, setFDesig] = useState<string>("all"); // Filter by designation
+  const [fGroup, setFGroup] = useState<string>("all"); // Filter by group
+  const [fStatus, setFStatus] = useState<string>("all"); // Filter by status
   const [showArchived, setShowArchived] = useState(false); // Toggle archived view
 
   // --- Dialog State ---
-  const [dialogOpen, setDialogOpen] = useState(false);     // Add/Edit dialog visibility
+  const [dialogOpen, setDialogOpen] = useState(false); // Add/Edit dialog visibility
   const [editing, setEditing] = useState<Employee | null>(null); // Employee being edited
   const [form, setForm] = useState<Partial<Employee>>(emptyForm); // Form data
   const [isSubmitting, setIsSubmitting] = useState(false); // Loading state for submit
 
   // --- Excel Import ---
-  const fileRef = useRef<HTMLInputElement>(null);          // Hidden file input ref
-  const [helpOpen, setHelpOpen] = useState(false);         // Help dialog visibility
+  const fileRef = useRef<HTMLInputElement>(null); // Hidden file input ref
+  const [helpOpen, setHelpOpen] = useState(false); // Help dialog visibility
 
   /** Check if any filter is active (for Excel export label) */
   const hasFilter = q.trim() !== "" || fDesig !== "all" || fGroup !== "all" || fStatus !== "all";
@@ -132,21 +140,23 @@ export default function EmployeesPage() {
     return employees.filter((e) => {
       // Show/hide archived (soft-deleted) employees
       if (showArchived ? !e.isDeleted : e.isDeleted) return false;
-      
+
       // Search by name, PF number, or token number
-      if (q && ![e.name, e.pfNumber, e.tokenNo].some((s) => 
-        s.toLowerCase().includes(q.toLowerCase())
-      )) return false;
-      
+      if (
+        q &&
+        ![e.name, e.pfNumber, e.tokenNo].some((s) => s.toLowerCase().includes(q.toLowerCase()))
+      )
+        return false;
+
       // Filter by designation
       if (fDesig !== "all" && e.designation !== fDesig) return false;
-      
+
       // Filter by group type
       if (fGroup !== "all" && e.groupType !== fGroup) return false;
-      
+
       // Filter by status (active/inactive)
       if (fStatus !== "all" && e.status !== fStatus) return false;
-      
+
       return true;
     });
   }, [employees, q, fDesig, fGroup, fStatus, showArchived]);
@@ -156,17 +166,17 @@ export default function EmployeesPage() {
   // ============================================================
 
   /** Open dialog for adding a new employee */
-  const openAdd = () => { 
-    setEditing(null); 
-    setForm(emptyForm); 
-    setDialogOpen(true); 
+  const openAdd = () => {
+    setEditing(null);
+    setForm(emptyForm);
+    setDialogOpen(true);
   };
 
   /** Open dialog for editing an existing employee */
-  const openEdit = (e: Employee) => { 
-    setEditing(e); 
-    setForm(e); 
-    setDialogOpen(true); 
+  const openEdit = (e: Employee) => {
+    setEditing(e);
+    setForm(e);
+    setDialogOpen(true);
   };
 
   /**
@@ -181,10 +191,10 @@ export default function EmployeesPage() {
       toast.error("Name, PF Number and Token No are required");
       return;
     }
-    
+
     try {
       setIsSubmitting(true); // Disable button during save
-      
+
       if (editing) {
         // Update existing employee
         await updateEmployee(editing.id, form);
@@ -194,7 +204,7 @@ export default function EmployeesPage() {
         await addEmployee(form as any);
         toast.success("Employee added");
       }
-      
+
       setDialogOpen(false); // Close dialog on success
     } catch (err) {
       // Show error message
@@ -218,15 +228,15 @@ export default function EmployeesPage() {
       "Name *": e.name,
       "PF Number *": e.pfNumber,
       "Token No *": e.tokenNo,
-      "Designation": e.designation,
-      "Batch": e.presentBatch,
-      "Group": e.groupType,
-      "Phone": e.phone,
-      "Address": e.address,
+      Designation: e.designation,
+      Batch: e.presentBatch,
+      Group: e.groupType,
+      Phone: e.phone,
+      Address: e.address,
       "Date of Birth": e.dateOfBirth || "",
       "Date of Joining": e.dateOfJoining || "",
     }));
-    
+
     const filename = `employees_${hasFilter ? "filtered" : "all"}_${new Date().toISOString().slice(0, 10)}.xlsx`;
     exportSheet(rows, filename, "Employees");
     toast.success("Excel downloaded");
@@ -238,11 +248,11 @@ export default function EmployeesPage() {
 
   /**
    * Import employees from Excel/CSV file
-   * 
+   *
    * SUPPORTED COLUMNS (case-insensitive, flexible matching):
    *   Required: Name, PF Number, Token No
    *   Optional: Designation, Batch, Group, Phone, Address, DOB, DOJ
-   * 
+   *
    * Column matching strategy:
    *   1. Exact match (trimmed)
    *   2. Case-insensitive match
@@ -255,11 +265,11 @@ export default function EmployeesPage() {
       const wb = XLSX.read(buf, { type: "array" });
       const ws = wb.Sheets[wb.SheetNames[0]];
       const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(ws, { defval: "" });
-      
+
       // Check if file has data
-      if (rows.length === 0) { 
-        toast.error("No rows found in file"); 
-        return; 
+      if (rows.length === 0) {
+        toast.error("No rows found in file");
+        return;
       }
 
       /**
@@ -268,32 +278,35 @@ export default function EmployeesPage() {
        * @param possibleNames - Array of possible column names
        * @returns The actual column key or null
        */
-      const findColumnKey = (row: Record<string, unknown>, possibleNames: string[]): string | null => {
+      const findColumnKey = (
+        row: Record<string, unknown>,
+        possibleNames: string[],
+      ): string | null => {
         const keys = Object.keys(row);
-        
+
         // Strategy 1: Exact match (trimmed)
         for (const name of possibleNames) {
-          const exact = keys.find(k => k.trim() === name);
+          const exact = keys.find((k) => k.trim() === name);
           if (exact) return exact;
         }
-        
+
         // Strategy 2: Case-insensitive match
         for (const name of possibleNames) {
           const lowerName = name.toLowerCase();
-          const match = keys.find(k => k.trim().toLowerCase() === lowerName);
+          const match = keys.find((k) => k.trim().toLowerCase() === lowerName);
           if (match) return match;
         }
-        
+
         // Strategy 3: Contains match (handles "Name" vs "Name *")
         for (const name of possibleNames) {
           const lowerName = name.toLowerCase();
-          const match = keys.find(k => {
+          const match = keys.find((k) => {
             const lowerKey = k.trim().toLowerCase();
             return lowerKey.includes(lowerName) || lowerName.includes(lowerKey);
           });
           if (match) return match;
         }
-        
+
         return null;
       };
 
@@ -306,44 +319,53 @@ export default function EmployeesPage() {
         const val = row[key];
         return val ? String(val).trim() : "";
       };
-      
-      let added = 0;   // Count of successfully imported employees
+
+      let added = 0; // Count of successfully imported employees
       let skipped = 0; // Count of skipped rows
-      
+
       // Process each row
       for (const r of rows) {
         // Skip completely empty rows
-        const hasData = Object.values(r).some(v => v && String(v).trim() !== "");
-        if (!hasData) { 
-          skipped++; 
-          continue; 
+        const hasData = Object.values(r).some((v) => v && String(v).trim() !== "");
+        if (!hasData) {
+          skipped++;
+          continue;
         }
 
         // Extract required fields
         const name = getValue(r, ["Name", "Name *", "Employee Name"]);
         const pfNumber = getValue(r, ["PF Number", "PF Number *", "PF No", "PF", "PF No *"]);
         const tokenNo = getValue(r, ["Token No", "Token No *", "Token", "Token Number"]);
-        
+
         // Skip if required fields are missing
-        if (!name || !pfNumber || !tokenNo) { 
-          skipped++; 
-          continue; 
+        if (!name || !pfNumber || !tokenNo) {
+          skipped++;
+          continue;
         }
-        
+
         // Extract optional fields with defaults
         const designation = getValue(r, ["Designation"]) || "Tech-I";
-        const importedBatch = getValue(r, ["Batch", "Present Batch"]);
+        // const importedBatch = getValue(r, ["Batch", "Present Batch"]);
 
-const batchExists = batches.some(
-  (b) => b.name.trim().toLowerCase() === importedBatch.trim().toLowerCase()
-);
+        // const batchExists = batches.some(
+        //   (b) => b.name.trim().toLowerCase() === importedBatch.trim().toLowerCase(),
+        // );
 
-const presentBatch = batchExists 
-  ? importedBatch
-  : "";
+        // const presentBatch = batchExists ? importedBatch : "";
+        const importedBatchRaw = getValue(r, ["Batch", "Present Batch"]);
+        let presentBatch = "";
+        if (importedBatchRaw.trim()) {
+          const created = await findOrCreateBatch(importedBatchRaw.trim());
+          presentBatch = created.name; // canonical stored name, avoids case-duplicates
+        }
         const groupRaw = getValue(r, ["Group", "Group Type"]) || "A";
-        const groupType = groupRaw.replace(/group\s*/i, "").trim().toUpperCase().slice(0, 1) || "A";
-        
+        const groupType =
+          groupRaw
+            .replace(/group\s*/i, "")
+            .trim()
+            .toUpperCase()
+            .slice(0, 1) || "A";
+
         // Add employee to database via API
         await addEmployee({
           name,
@@ -359,7 +381,7 @@ const presentBatch = batchExists
         });
         added++;
       }
-      
+
       // Show success message with import stats
       toast.success(`Imported ${added} employee(s)${skipped ? ` · skipped ${skipped}` : ""}`);
     } catch (err) {
@@ -381,9 +403,9 @@ const presentBatch = batchExists
    * - Handles errors and shows toast messages
    */
   const handleToggleStatus = async (id: string, name: string) => {
-    const ok = await confirm({ 
-      title: `Toggle status for ${name}?`, 
-      confirmText: "Toggle" 
+    const ok = await confirm({
+      title: `Toggle status for ${name}?`,
+      confirmText: "Toggle",
     });
     if (ok) {
       try {
@@ -401,21 +423,22 @@ const presentBatch = batchExists
    * - Can be restored later
    */
   const handleDelete = async (id: string, name: string) => {
-  const ok = await confirm({
-    title: `Permanently delete ${name}?`,
-    description: "This cannot be undone. This will remove the employee's data from the database completely.",
-    confirmText: "Delete",
-    destructive: true,
-  });
-  if (ok) {
-    try {
-      await deleteEmployee(id);
-      toast.success("Employee permanently deleted");
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to delete employee");
+    const ok = await confirm({
+      title: `Permanently delete ${name}?`,
+      description:
+        "This cannot be undone. This will remove the employee's data from the database completely.",
+      confirmText: "Delete",
+      destructive: true,
+    });
+    if (ok) {
+      try {
+        await deleteEmployee(id);
+        toast.success("Employee permanently deleted");
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : "Failed to delete employee");
+      }
     }
-  }
-};
+  };
   /**
    * Restore archived employee
    * - Sets isDeleted back to false
@@ -448,9 +471,12 @@ const presentBatch = batchExists
             type="file"
             accept=".xlsx,.xls,.csv"
             className="hidden"
-            onChange={(e) => { const f = e.target.files?.[0]; if (f) handleImportFile(f); }}
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              if (f) handleImportFile(f);
+            }}
           />
-          
+
           {/* Action buttons */}
           <Button variant="outline" onClick={downloadExcel}>
             <Download className="h-4 w-4 mr-1" />
@@ -459,7 +485,12 @@ const presentBatch = batchExists
           <Button variant="outline" onClick={() => fileRef.current?.click()}>
             <Upload className="h-4 w-4 mr-1" /> Import Excel
           </Button>
-          <Button variant="ghost" size="icon" onClick={() => setHelpOpen(true)} title="Import format">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setHelpOpen(true)}
+            title="Import format"
+          >
             <HelpCircle className="h-4 w-4" />
           </Button>
           {/* <Button variant="outline" onClick={() => setShowArchived((s) => !s)}>
@@ -477,26 +508,47 @@ const presentBatch = batchExists
           <DialogHeader>
             <DialogTitle>Import Excel — expected format</DialogTitle>
             <DialogDescription>
-              Upload an <b>.xlsx</b>, <b>.xls</b>, or <b>.csv</b> file with a header row in the first sheet.
+              Upload an <b>.xlsx</b>, <b>.xls</b>, or <b>.csv</b> file with a header row in the
+              first sheet.
             </DialogDescription>
           </DialogHeader>
           <div className="text-sm space-y-2">
             <div>Recognised columns (header names, case-insensitive):</div>
             <ul className="list-disc pl-5 text-xs text-slate-700 space-y-0.5">
-              <li><b>Name</b> or <b>Name *</b> — required</li>
-              <li><b>PF Number</b> or <b>PF Number *</b> — required</li>
-              <li><b>Token No</b> or <b>Token No *</b> — required</li>
-              <li><b>Designation</b> — e.g. Tech-I, Sr.Tech, Helper</li>
-              <li><b>Batch</b> — e.g. A BATCH, VANDE BHARAT</li>
-              <li><b>Group</b> — A / B / C / D / E / F (or "Group A")</li>
-              <li><b>Phone</b>, <b>Address</b>, <b>Date of Birth</b>, <b>Date of Joining</b> — optional</li>
+              <li>
+                <b>Name</b> or <b>Name *</b> — required
+              </li>
+              <li>
+                <b>PF Number</b> or <b>PF Number *</b> — required
+              </li>
+              <li>
+                <b>Token No</b> or <b>Token No *</b> — required
+              </li>
+              <li>
+                <b>Designation</b> — e.g. Tech-I, Sr.Tech, Helper
+              </li>
+              <li>
+                <b>Batch</b> — e.g. A BATCH, VANDE BHARAT
+              </li>
+              <li>
+                <b>Group</b> — A / B / C / D / E / F (or "Group A")
+              </li>
+              <li>
+                <b>Phone</b>, <b>Address</b>, <b>Date of Birth</b>, <b>Date of Joining</b> —
+                optional
+              </li>
             </ul>
             <div className="text-xs text-slate-500">
               Tip: use the <b>Download Excel</b> button first to get an exact template.
             </div>
           </div>
           <DialogFooter>
-            <Button onClick={() => setHelpOpen(false)} className="bg-[#0b2545] hover:bg-[#0b2545]/90">Got it</Button>
+            <Button
+              onClick={() => setHelpOpen(false)}
+              className="bg-[#0b2545] hover:bg-[#0b2545]/90"
+            >
+              Got it
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -504,17 +556,17 @@ const presentBatch = batchExists
       {/* ========== SEARCH & FILTERS ========== */}
       <Card>
         <CardContent className="p-4 grid grid-cols-1 md:grid-cols-4 gap-3">
-          <Input 
-            placeholder="Search name / token / PF" 
-            value={q} 
-            onChange={(e) => setQ(e.target.value)} 
+          <Input
+            placeholder="Search name / token / PF"
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
           />
           <Combobox
             value={fDesig}
             onChange={setFDesig}
             options={[
-              { value: "all", label: "All Designations" }, 
-              ...DESIGNATIONS.map((d) => ({ value: d, label: d }))
+              { value: "all", label: "All Designations" },
+              ...DESIGNATIONS.map((d) => ({ value: d, label: d })),
             ]}
             placeholder="Designation"
           />
@@ -522,8 +574,8 @@ const presentBatch = batchExists
             value={fGroup}
             onChange={setFGroup}
             options={[
-              { value: "all", label: "All Groups" }, 
-              ...GROUPS.map((g) => ({ value: g, label: `Group ${g}` }))
+              { value: "all", label: "All Groups" },
+              ...GROUPS.map((g) => ({ value: g, label: `Group ${g}` })),
             ]}
             placeholder="Group"
           />
@@ -531,9 +583,9 @@ const presentBatch = batchExists
             value={fStatus}
             onChange={setFStatus}
             options={[
-              { value: "all", label: "All Status" }, 
-              { value: "active", label: "Active" }, 
-              { value: "inactive", label: "Inactive" }
+              { value: "all", label: "All Status" },
+              { value: "active", label: "Active" },
+              { value: "inactive", label: "Inactive" },
             ]}
             placeholder="Status"
           />
@@ -567,7 +619,9 @@ const presentBatch = batchExists
                     <td>{e.tokenNo}</td>
                     <td>{e.designation}</td>
                     <td className="text-slate-600">{e.presentBatch}</td>
-                    <td><Badge variant="outline">Group {e.groupType}</Badge></td>
+                    <td>
+                      <Badge variant="outline">Group {e.groupType}</Badge>
+                    </td>
                     <td>
                       <Badge className={e.status === "active" ? "bg-emerald-600" : "bg-slate-400"}>
                         {e.status}
@@ -586,10 +640,18 @@ const presentBatch = batchExists
                             <Button size="sm" variant="ghost" onClick={() => openEdit(e)}>
                               <Pencil className="h-4 w-4" />
                             </Button>
-                            <Button size="sm" variant="ghost" onClick={() => handleToggleStatus(e.id, e.name)}>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => handleToggleStatus(e.id, e.name)}
+                            >
                               <Power className="h-4 w-4" />
                             </Button>
-                            <Button size="sm" variant="ghost" onClick={() => handleDelete(e.id, e.name)}>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => handleDelete(e.id, e.name)}
+                            >
                               <Trash2 className="h-4 w-4 text-rose-600" />
                             </Button>
                           </>
@@ -617,24 +679,24 @@ const presentBatch = batchExists
           <DialogHeader>
             <DialogTitle>{editing ? "Edit Employee" : "Add Employee"}</DialogTitle>
           </DialogHeader>
-          
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <Field label="Name *">
-              <Input 
-                value={form.name ?? ""} 
-                onChange={(e) => setForm({ ...form, name: e.target.value })} 
+              <Input
+                value={form.name ?? ""}
+                onChange={(e) => setForm({ ...form, name: e.target.value })}
               />
             </Field>
             <Field label="PF Number *">
-              <Input 
-                value={form.pfNumber ?? ""} 
-                onChange={(e) => setForm({ ...form, pfNumber: e.target.value })} 
+              <Input
+                value={form.pfNumber ?? ""}
+                onChange={(e) => setForm({ ...form, pfNumber: e.target.value })}
               />
             </Field>
             <Field label="Token No *">
-              <Input 
-                value={form.tokenNo ?? ""} 
-                onChange={(e) => setForm({ ...form, tokenNo: e.target.value })} 
+              <Input
+                value={form.tokenNo ?? ""}
+                onChange={(e) => setForm({ ...form, tokenNo: e.target.value })}
               />
             </Field>
             <Field label="Designation">
@@ -653,15 +715,16 @@ const presentBatch = batchExists
             </Field> */}
 
             <Field label="Present Batch">
-  <Combobox
-    value={form.presentBatch as string}
-    onChange={(v) => setForm({ ...form, presentBatch: v })}
-   options={batches.map((b) => ({
-        value: b.name,
-        label: b.name,
-      }))}
-  />
-</Field>
+              <Combobox
+                value={form.presentBatch as string}
+                onChange={(v) => setForm({ ...form, presentBatch: v })}
+                options={batches.map((b) => ({ value: b.name, label: b.name }))}
+                allowCreate
+                onCreate={async (name) => {
+                  await findOrCreateBatch(name);
+                }}
+              />
+            </Field>
             <Field label="Group Type">
               <Combobox
                 value={form.groupType as string}
@@ -670,41 +733,43 @@ const presentBatch = batchExists
               />
             </Field>
             <Field label="Phone">
-              <Input 
-                value={form.phone ?? ""} 
-                onChange={(e) => setForm({ ...form, phone: e.target.value })} 
+              <Input
+                value={form.phone ?? ""}
+                onChange={(e) => setForm({ ...form, phone: e.target.value })}
               />
             </Field>
             <Field label="Address">
-              <Input 
-                value={form.address ?? ""} 
-                onChange={(e) => setForm({ ...form, address: e.target.value })} 
+              <Input
+                value={form.address ?? ""}
+                onChange={(e) => setForm({ ...form, address: e.target.value })}
               />
             </Field>
             <Field label="Date of Birth">
-              <Input 
-                type="date" 
-                value={form.dateOfBirth ?? ""} 
-                onChange={(e) => setForm({ ...form, dateOfBirth: e.target.value })} 
+              <Input
+                type="date"
+                value={form.dateOfBirth ?? ""}
+                onChange={(e) => setForm({ ...form, dateOfBirth: e.target.value })}
               />
             </Field>
             <Field label="Date of Joining">
-              <Input 
-                type="date" 
-                value={form.dateOfJoining ?? ""} 
-                onChange={(e) => setForm({ ...form, dateOfJoining: e.target.value })} 
+              <Input
+                type="date"
+                value={form.dateOfJoining ?? ""}
+                onChange={(e) => setForm({ ...form, dateOfJoining: e.target.value })}
               />
             </Field>
           </div>
-          
+
           <DialogFooter>
-            <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>
-            <Button 
-              onClick={save} 
-              disabled={isSubmitting} 
+            <Button variant="outline" onClick={() => setDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={save}
+              disabled={isSubmitting}
               className="bg-[#0b2545] hover:bg-[#0b2545]/90"
             >
-              {isSubmitting ? "Saving..." : (editing ? "Update" : "Add")}
+              {isSubmitting ? "Saving..." : editing ? "Update" : "Add"}
             </Button>
           </DialogFooter>
         </DialogContent>

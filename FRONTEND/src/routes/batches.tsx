@@ -17,6 +17,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { Combobox } from "@/components/Combobox"; // add import
 
 const createDefaultDays = (): Batch["days"] =>
   Array.from({ length: 14 }, (_, i) => ({
@@ -31,17 +32,21 @@ const createDefaultDays = (): Batch["days"] =>
   }));
 
 const BatchesPage = () => {
-  const { batches, saveBatch, softDeleteBatch } = useData();
+  const { batches, saveBatch, softDeleteBatch, refresh } = useData();
   const confirm = useConfirm();
   const [editingId, setEditingId] = useState<string>();
 
   const [batchName, setBatchName] = useState("");
   const [showForm, setShowForm] = useState(false);
   const [search, setSearch] = useState("");
+  const [selectedNewBatchId, setSelectedNewBatchId] = useState<string>(""); // add
   const filteredBatches = useMemo(() => {
-    return batches.filter((b) => b.name.toLowerCase().includes(search.toLowerCase()));
-  }, [batches, search]);
-
+  return batches.filter(
+    (b) => b.rosterConfigured && b.name.toLowerCase().includes(search.toLowerCase()),
+  );
+}, [batches, search]);
+  // Batches that exist (e.g. from employee import/form) but have no roster yet.
+  const unconfiguredBatches = useMemo(() => batches.filter((b) => !b.rosterConfigured), [batches]);
   const [days, setDays] = useState(createDefaultDays());
 
   return (
@@ -57,17 +62,23 @@ const BatchesPage = () => {
               <CardHeader>
                 <div className="flex justify-between items-center">
                   <CardTitle>Existing Batches</CardTitle>
-
                   <Button
                     onClick={() => {
                       setShowForm(true);
                       setEditingId(undefined);
+                      setSelectedNewBatchId("");
                       setBatchName("");
                       setDays(createDefaultDays());
                     }}
+                    disabled={unconfiguredBatches.length === 0}
+                    title={
+                      unconfiguredBatches.length === 0
+                        ? "No new batches waiting for a roster"
+                        : undefined
+                    }
                   >
                     <Plus className="w-4 h-4 mr-2" />
-                    Add Batch
+                    Add Roster Duty
                   </Button>
                 </div>
               </CardHeader>
@@ -161,18 +172,36 @@ const BatchesPage = () => {
                 </Table>
               </CardContent>
             </Card>
-            
+
             {showForm && (
               <div className="space-y-4">
                 <div>
-              <Label>Batch Name</Label>
+                  <Label>Batch</Label>
 
-              <Input
-                value={batchName}
-                onChange={(e) => setBatchName(e.target.value)}
-                placeholder="Example : Batch A"
-              />
-            </div>
+                  {editingId ? (
+                    // Editing an already-configured batch: allow renaming freely.
+                    <Input
+                      value={batchName}
+                      onChange={(e) => setBatchName(e.target.value)}
+                      placeholder="Example : Batch A"
+                    />
+                  ) : unconfiguredBatches.length === 0 ? (
+                    <div className="h-9 rounded-md border border-amber-200 bg-amber-50 px-3 flex items-center text-xs font-semibold text-amber-700">
+                      No batches waiting for a roster. Add batches from the Employees page first.
+                    </div>
+                  ) : (
+                    <Combobox
+                      value={selectedNewBatchId}
+                      onChange={(id) => {
+                        setSelectedNewBatchId(id);
+                        const b = unconfiguredBatches.find((x) => x.id === id);
+                        setBatchName(b?.name ?? "");
+                      }}
+                      options={unconfiguredBatches.map((b) => ({ value: b.id, label: b.name }))}
+                      placeholder="Select a batch to configure…"
+                    />
+                  )}
+                </div>
                 {days.map((day, index) => (
                   <Card key={day.dayNumber}>
                     <CardContent className="pt-5">
@@ -284,33 +313,35 @@ const BatchesPage = () => {
                 <div className="flex justify-end mt-6">
                   <Button
                     onClick={async () => {
+                      const targetId = editingId ?? selectedNewBatchId;
+                      if (!targetId) {
+                        toast.error("Select a batch first");
+                        return;
+                      }
                       if (!batchName.trim()) {
-                        alert("Enter batch name");
-
+                        toast.error("Enter batch name");
                         return;
                       }
 
-                      await saveBatch({
-                        id: editingId,
-
-                        name: batchName,
-
-                        days,
-                      });
-
-                      toast.success(
-                        editingId ? "Batch updated successfully!" : "Batch created successfully!",
-                      );
-
-                      setEditingId(undefined);
-
-                      setBatchName("");
-
-                      setDays(createDefaultDays());
-                      setShowForm(false);
+                      try {
+                        await saveBatch({ id: targetId, name: batchName, days });
+                        await refresh(); // pulls updated employee.presentBatch after any rename
+                        toast.success(
+                          editingId
+                            ? "Batch updated successfully!"
+                            : "Roster duty saved successfully!",
+                        );
+                        setEditingId(undefined);
+                        setSelectedNewBatchId("");
+                        setBatchName("");
+                        setDays(createDefaultDays());
+                        setShowForm(false);
+                      } catch (err) {
+                        toast.error(err instanceof Error ? err.message : "Failed to save batch");
+                      }
                     }}
                   >
-                    {editingId ? "Update Batch" : "Save Batch"}
+                    {editingId ? "Update Batch" : "Save Roster Duty"}
                   </Button>
                 </div>
               </div>

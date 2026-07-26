@@ -2,6 +2,36 @@ const { sql } = require("../lib/db");
 const { neon } = require("@neondatabase/serverless");
 const { mapBatch } = require("../lib/mappers");
 
+
+
+
+
+const DEFAULT_DAYS = Array.from({ length: 14 }, (_, i) => ({
+  dayNumber: i + 1,
+  isRestDay: false,
+  slots: [{ from: "08:00", to: "16:00" }],
+}));
+
+// Case-insensitive find, or create with default 14-day roster.
+async function findOrCreateBatch(req, res) {
+  const name = (req.body.name || "").trim();
+  if (!name) return res.status(400).json({ error: "Batch name is required" });
+
+  const [existing] = await sql`
+    SELECT * FROM batches WHERE LOWER(name) = LOWER(${name}) AND is_deleted = FALSE`;
+  if (existing) {
+    return res.json(await getBatchWithDays(existing.id));
+  }
+
+  const [created] = await sql`INSERT INTO batches (name) VALUES (${name}) RETURNING id`;
+  for (const d of DEFAULT_DAYS) {
+    await sql`
+      INSERT INTO batch_roster_days (batch_id, day_number, is_rest_day, slots)
+      VALUES (${created.id}, ${d.dayNumber}, ${d.isRestDay}, ${JSON.stringify(d.slots)})`;
+  }
+  res.status(201).json(await getBatchWithDays(created.id));
+}
+
 // Fetch a batch + its roster days and shape it for the API response.
 async function getBatchWithDays(batchId) {
   const [batchRow] = await sql`SELECT * FROM batches WHERE id = ${batchId}`;
@@ -43,21 +73,37 @@ async function upsertBatch(req, res) {
     return res.status(400).json({ error: "days must be an array of exactly 14 entries" });
   }
 
-//   const pool = neon(process.env.DATABASE_URL, { transactionMode: true });
-
   let batchId = b.id;
+  let oldName = null;
 
   if (batchId) {
     const [existing] = await sql`SELECT * FROM batches WHERE id = ${batchId}`;
     if (!existing) return res.status(404).json({ error: "Batch not found" });
-    await sql`UPDATE batches SET name = ${b.name.trim()} WHERE id = ${batchId}`;
+    oldName = existing.name;
+     // Guard: if this is a fresh "Add roster" (not an edit of an already-configured
+    // batch), the FE only offers unconfigured batches — but double-check here too.
+    if (!existing.roster_configured && req.body.__mode === "add") {
+      // fine — first-time roster setup
+    }
+
+    await sql`
+      UPDATE batches
+      SET name = ${b.name.trim()}, roster_configured = TRUE
+      WHERE id = ${batchId}`;
+
+    if (oldName.trim().toLowerCase() !== b.name.trim().toLowerCase()) {
+      await sql`
+        UPDATE employees
+        SET present_batch = ${b.name.trim()}
+        WHERE LOWER(present_batch) = LOWER(${oldName})`;
+    }
   } else {
+    // Only reached if FE somehow posts without an id — treat as new + configured.
     const [created] = await sql`
-      INSERT INTO batches (name) VALUES (${b.name.trim()}) RETURNING id`;
+      INSERT INTO batches (name, roster_configured) VALUES (${b.name.trim()}, TRUE) RETURNING id`;
     batchId = created.id;
   }
 
-  // Upsert each of the 14 days.
   for (const d of b.days) {
     const dayNumber = Number(d.dayNumber);
     if (!Number.isInteger(dayNumber) || dayNumber < 1 || dayNumber > 14) {
@@ -71,8 +117,7 @@ async function upsertBatch(req, res) {
       DO UPDATE SET is_rest_day = EXCLUDED.is_rest_day, slots = EXCLUDED.slots`;
   }
 
-  const result = await getBatchWithDays(batchId);
-  res.status(201).json(result);
+  res.status(201).json(await getBatchWithDays(batchId));
 }
 
 async function softDeleteBatch(req, res) {
@@ -95,4 +140,5 @@ module.exports = {
   upsertBatch,
   softDeleteBatch,
   restoreBatch,
+  findOrCreateBatch,
 };
