@@ -44,7 +44,15 @@ import {
   Redo2,
 } from "lucide-react";
 import { toast } from "sonner";
-
+// place near the top of duty.tsx, after the imports
+const DESCRIPTION_PRESETS = [
+  "OT/OL/RAJ",
+  "OT/OL/MAS",
+  "OT/OL/DWR",
+  "OT/OL/ERS",
+  "OT/OL/BD",
+  "CR of",
+];
 export default function DutyPage() {
   // const { employees, trains, dutySheets, saveDutySheet } = useData();
   const { employees, trains, dutySheets, batches, saveDutySheet } = useData();
@@ -336,7 +344,23 @@ export default function DutyPage() {
       nav("/records");
     }
   };
-
+  // Copies roster+actual+description from one day in the grid to another (same 14-day sheet).
+  const copyFromDate = (targetIdx: number, sourceDate: string) => {
+    const sourceIdx = days.findIndex((d) => d.date === sourceDate);
+    if (sourceIdx === -1) return;
+    const src = days[sourceIdx];
+    updateDay(targetIdx, {
+      isRestDay: src.isRestDay,
+      actualIsRest: src.actualIsRest,
+      rosteredSlots: src.rosteredSlots.map((s) => ({ ...s })),
+      rosteredHours: src.rosteredHours,
+      actualSlots: src.actualSlots.map((s) => ({ ...s })),
+      actualHours: src.actualHours,
+      leave: src.leave,
+      description: src.description,
+    });
+    toast.success(`Copied from ${fmtDate(sourceDate)}`);
+  };
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-2">
@@ -361,23 +385,28 @@ export default function DutyPage() {
           </CardHeader>
           <CardContent className="space-y-4">
             <Combobox
-  className="max-w-md"
-  value={employeeId}
-  onChange={setEmployeeId}
-  placeholder="Choose employee…"
-  options={activeEmp.map((e) => ({
-    value: e.id,
-    label: `${e.name} — Token ${e.tokenNo}`,
-    hint: `PF ${e.pfNumber} · ${e.designation} · Group ${e.groupType}`,
-    searchValue: `${e.name} ${e.tokenNo}`,          // NEW — only name + token are searchable
-  }))}
-  filter={(value, search) => {
-    const s = search.trim().toLowerCase();
-    if (!s) return 1;
-    // match only if a whole word (first name, last name, or token) STARTS WITH what's typed
-    return value.toLowerCase().split(/\s+/).some((word) => word.startsWith(s)) ? 1 : 0;
-  }}
-/>
+              className="max-w-md"
+              value={employeeId}
+              onChange={setEmployeeId}
+              placeholder="Choose employee…"
+              options={activeEmp.map((e) => ({
+                value: e.id,
+                label: `${e.name} — Token ${e.tokenNo}`,
+                hint: `PF ${e.pfNumber} · ${e.designation} · Group ${e.groupType}`,
+                searchValue: `${e.name} ${e.tokenNo}`, // NEW — only name + token are searchable
+              }))}
+              filter={(value, search) => {
+                const s = search.trim().toLowerCase();
+                if (!s) return 1;
+                // match only if a whole word (first name, last name, or token) STARTS WITH what's typed
+                return value
+                  .toLowerCase()
+                  .split(/\s+/)
+                  .some((word) => word.startsWith(s))
+                  ? 1
+                  : 0;
+              }}
+            />
             {emp && (
               <div className="rounded-lg border bg-slate-50 p-4 grid grid-cols-2 md:grid-cols-5 gap-3 text-sm">
                 <div>
@@ -634,6 +663,24 @@ export default function DutyPage() {
                               REST
                             </div>
                           )}
+                          <select
+                            className="mt-1 h-7 w-full text-[11px] border rounded px-1 bg-white"
+                            value=""
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              if (val) copyFromDate(i, val);
+                              e.target.value = "";
+                            }}
+                          >
+                            <option value="">Copy from…</option>
+                            {days
+                              .filter((dd) => dd.date !== d.date)
+                              .map((dd) => (
+                                <option key={dd.date} value={dd.date}>
+                                  {fmtDate(dd.date)}
+                                </option>
+                              ))}
+                          </select>
                         </td>
                         <td className={`p-2 border align-top ${rosteredCellBg}`}>
                           <SlotEditor
@@ -727,6 +774,26 @@ export default function DutyPage() {
                               {has2 ? <X className="h-3 w-3" /> : <Plus className="h-3 w-3" />}
                             </button>
                           </div>
+                          {/* NEW: preset picker — inserts into (editable) line 1 */}
+                          <select
+                            className="mt-1 h-7 w-full text-[11px] border rounded px-1 bg-white"
+                            value=""
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              if (!val) return;
+                              updateDay(i, {
+                                description: has2 ? `${val}\n${line2}` : val,
+                              });
+                              e.target.value = "";
+                            }}
+                          >
+                            <option value="">Insert preset…</option>
+                            {DESCRIPTION_PRESETS.map((p) => (
+                              <option key={p} value={p}>
+                                {p}
+                              </option>
+                            ))}
+                          </select>
                         </td>
                       </tr>
                     );
@@ -1014,29 +1081,29 @@ function CopyFromPastDuty({
   const activeSheet = past.find((s) => s.id === selectedSheet);
   const noHistory = past.length === 0;
 
- const applyCopy = () => {
-  if (!activeSheet || days.length === 0) return;
-  const next = days.map((d, i) => {
-    const src = activeSheet.days[i];
-    if (!src) return d;
-    return {
-      ...d,
-      isRestDay: src.isRestDay,
-      actualIsRest: src.actualIsRest,
-      rosteredSlots: src.rosteredSlots.map((s) => ({ ...s })),
-      rosteredHours: src.rosteredHours,
-      actualSlots: src.actualSlots.map((s) => ({ ...s })),   // ✅ copy actual, not rostered
-      actualHours: src.actualHours,                           // ✅ copy actual, not rostered
-      leave: src.leave ?? "None",                             // ✅ carry over leave too, since it drives actualHours
-      description: src.description ?? "",                     // optional: carry over notes like CR references
-      extraHours: Math.round((src.actualHours - src.rosteredHours) * 100) / 100,
-    };
-  });
-  setDays(next);
-  toast.success("Roster and actual data copied from past duty sheet");
-  setSelectedSheet("");
-  onDone?.();
-};
+  const applyCopy = () => {
+    if (!activeSheet || days.length === 0) return;
+    const next = days.map((d, i) => {
+      const src = activeSheet.days[i];
+      if (!src) return d;
+      return {
+        ...d,
+        isRestDay: src.isRestDay,
+        actualIsRest: src.actualIsRest,
+        rosteredSlots: src.rosteredSlots.map((s) => ({ ...s })),
+        rosteredHours: src.rosteredHours,
+        actualSlots: src.actualSlots.map((s) => ({ ...s })), // ✅ copy actual, not rostered
+        actualHours: src.actualHours, // ✅ copy actual, not rostered
+        leave: src.leave ?? "None", // ✅ carry over leave too, since it drives actualHours
+        description: src.description ?? "", // optional: carry over notes like CR references
+        extraHours: Math.round((src.actualHours - src.rosteredHours) * 100) / 100,
+      };
+    });
+    setDays(next);
+    toast.success("Roster and actual data copied from past duty sheet");
+    setSelectedSheet("");
+    onDone?.();
+  };
   return (
     <Card>
       <CardHeader>
