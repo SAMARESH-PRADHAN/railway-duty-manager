@@ -89,6 +89,7 @@ export interface Batch {
   id: string;
   name: string;
   isDeleted: boolean;
+  rosterConfigured: boolean; // add
   createdAt: string;
   updatedAt: string;
   days: BatchRosterDay[];  // always 14 entries, dayNumber 1..14
