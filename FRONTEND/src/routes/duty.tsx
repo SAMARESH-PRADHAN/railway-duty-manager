@@ -361,16 +361,23 @@ export default function DutyPage() {
           </CardHeader>
           <CardContent className="space-y-4">
             <Combobox
-              className="max-w-md"
-              value={employeeId}
-              onChange={setEmployeeId}
-              placeholder="Choose employee…"
-              options={activeEmp.map((e) => ({
-                value: e.id,
-                label: `${e.name} — Token ${e.tokenNo}`,
-                hint: `PF ${e.pfNumber} · ${e.designation} · Group ${e.groupType}`,
-              }))}
-            />
+  className="max-w-md"
+  value={employeeId}
+  onChange={setEmployeeId}
+  placeholder="Choose employee…"
+  options={activeEmp.map((e) => ({
+    value: e.id,
+    label: `${e.name} — Token ${e.tokenNo}`,
+    hint: `PF ${e.pfNumber} · ${e.designation} · Group ${e.groupType}`,
+    searchValue: `${e.name} ${e.tokenNo}`,          // NEW — only name + token are searchable
+  }))}
+  filter={(value, search) => {
+    const s = search.trim().toLowerCase();
+    if (!s) return 1;
+    // match only if a whole word (first name, last name, or token) STARTS WITH what's typed
+    return value.toLowerCase().split(/\s+/).some((word) => word.startsWith(s)) ? 1 : 0;
+  }}
+/>
             {emp && (
               <div className="rounded-lg border bg-slate-50 p-4 grid grid-cols-2 md:grid-cols-5 gap-3 text-sm">
                 <div>
