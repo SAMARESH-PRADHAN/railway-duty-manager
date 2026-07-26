@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Combobox } from "@/components/Combobox";
 import { FileDown, Pencil, Trash2 } from "lucide-react";
 import { fmtDate, fmtHours } from "@/lib/ot-utils";
-import { exportOtSlipPdf } from "@/lib/pdf-export";
+import { exportOtSlipPdf, exportMultipleOtSlipsPdf } from "@/lib/pdf-export";
 import { useConfirm } from "@/components/ConfirmProvider";
 import { toast } from "sonner";
 
@@ -28,7 +28,24 @@ export default function RecordsPage() {
     if (to && s.periodStartDate > to) return false;
     return true;
   }).sort((a, b) => (a.periodStartDate < b.periodStartDate ? 1 : -1)), [dutySheets, emp, trn, from, to]);
+const downloadAllPdf = () => {
+  const savable = filtered.filter((s) => !s.isDraft); // drafts can't be exported, same rule as per-row button
+  if (savable.length === 0) {
+    toast.error("No non-draft duty sheets match the current filters");
+    return;
+  }
 
+  const items = savable.map((s) => {
+    const e = employees.find((x) => x.id === s.employeeId)!;
+    const sheetTrains = s.trainIds
+      .map((id) => trains.find((t) => t.id === id))
+      .filter(Boolean) as any[];
+    return { sheet: s, emp: e, trains: sheetTrains };
+  });
+
+  exportMultipleOtSlipsPdf(items, `OTA_Duty_Records_${from || "all"}_to_${to || "all"}`);
+  toast.success(`Exported ${items.length} duty sheet(s) to one PDF`);
+};
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -54,7 +71,16 @@ export default function RecordsPage() {
         />
         <Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} placeholder="From" />
         <Input type="date" value={to} onChange={(e) => setTo(e.target.value)} placeholder="To" />
-      </CardContent></Card>
+      </CardContent>
+      <CardContent className="pt-0 flex justify-end">
+  <Button
+    variant="outline"
+    onClick={downloadAllPdf}
+    className="bg-[#0b2545] text-white hover:bg-[#0b2545]/90"
+  >
+    <FileDown className="h-4 w-4 mr-1" /> Download All PDF
+  </Button>
+</CardContent></Card>
 
       <Card><CardContent className="p-0">
         <div className="overflow-x-auto">

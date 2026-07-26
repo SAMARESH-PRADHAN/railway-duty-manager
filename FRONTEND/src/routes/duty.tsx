@@ -430,7 +430,7 @@ export default function DutyPage() {
                   <div className="font-semibold">Group {emp.groupType}</div>
                 </div>
                 <div>
-                  <div className="text-xs text-slate-500">Roster Batch</div>
+                  <div className="text-xs text-slate-500">Batch</div>
 
                   <div className="font-semibold text-blue-700">
                     {/* {employeeBatch?.name ?? "Not Assigned"} */}
@@ -440,7 +440,7 @@ export default function DutyPage() {
               </div>
             )}
             <div className="flex justify-end">
-              {employeeId && !employeeBatch && (
+              {employeeId && employeeBatch && !employeeBatch.rosterConfigured && (
                 <div className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-700">
                   No roster batch found for Present Batch <strong>"{emp?.presentBatch}"</strong>.
                   Default roster timings will be used instead.

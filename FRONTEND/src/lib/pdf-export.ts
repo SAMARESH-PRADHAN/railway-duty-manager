@@ -7,10 +7,8 @@ function slotToStr(s: { from: string; to: string }) {
   return `${s.from.replace(":", ".")}:${s.to.replace(":", ".")}`;
 }
 
-export function exportOtSlipPdf(sheet: DutySheet, emp: Employee, trains: Train[]) {
-  const doc = new jsPDF({ unit: "mm", format: "a4" });
+function drawOtSlip(doc: jsPDF, sheet: DutySheet, emp: Employee, trains: Train[]) {
   const W = doc.internal.pageSize.getWidth();
-
   // Display-only calculation: flat 8-hour deduction, then subtract rostered hours
   const FLAT_DEDUCTION = 8;
   const rawActualSum = sheet.days.reduce((acc, d) => acc + (d.actualHours || 0), 0);
@@ -244,7 +242,29 @@ export function exportOtSlipPdf(sheet: DutySheet, emp: Employee, trains: Train[]
   doc.text("SSE-in-charge", W / 2 - 15, y);
   doc.text("Employee Signature", W - 55, y);
 
+  // doc.save(`OT_Slip_${emp.name.replace(/\s+/g, "_")}_${sheet.periodStartDate}.pdf`);
+}
+
+export function exportOtSlipPdf(sheet: DutySheet, emp: Employee, trains: Train[]) {
+  const doc = new jsPDF({ unit: "mm", format: "a4" });
+  drawOtSlip(doc, sheet, emp, trains);
   doc.save(`OT_Slip_${emp.name.replace(/\s+/g, "_")}_${sheet.periodStartDate}.pdf`);
+}
+
+export function exportMultipleOtSlipsPdf(
+  items: { sheet: DutySheet; emp: Employee; trains: Train[] }[],
+  filenameHint = "OT_Slips_Bulk",
+) {
+  if (items.length === 0) return;
+
+  const doc = new jsPDF({ unit: "mm", format: "a4" });
+
+  items.forEach((item, idx) => {
+    if (idx > 0) doc.addPage();
+    drawOtSlip(doc, item.sheet, item.emp, item.trains);
+  });
+
+  doc.save(`${filenameHint}_${new Date().toISOString().slice(0, 10)}.pdf`);
 }
 
 export interface ReportRow {
