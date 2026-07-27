@@ -135,6 +135,8 @@ CREATE INDEX IF NOT EXISTS idx_batch_roster_days_batch_id ON batch_roster_days (
 -- Link employees to a batch (nullable = falls back to designation-based default)
 ALTER TABLE employees ADD COLUMN IF NOT EXISTS batch_id UUID REFERENCES batches(id);
 ALTER TABLE batches ADD COLUMN IF NOT EXISTS roster_configured BOOLEAN NOT NULL DEFAULT FALSE;
+CREATE UNIQUE INDEX IF NOT EXISTS idx_employees_pf_number_unique ON employees (pf_number);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_employees_token_no_unique ON employees (token_no);
 
 DROP TRIGGER IF EXISTS trg_batches_updated_at ON batches;
 CREATE TRIGGER trg_batches_updated_at

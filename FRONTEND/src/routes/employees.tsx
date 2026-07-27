@@ -123,6 +123,17 @@ export default function EmployeesPage() {
   const fileRef = useRef<HTMLInputElement>(null); // Hidden file input ref
   const [helpOpen, setHelpOpen] = useState(false); // Help dialog visibility
 
+
+  const [importFailures, setImportFailures] = useState<
+  {
+    name: string;
+    pfNumber: string;
+    tokenNo: string;
+    reason: string;
+  }[]
+>([]);
+const [importFailuresOpen, setImportFailuresOpen] = useState(false);
+
   /** Check if any filter is active (for Excel export label) */
   const hasFilter = q.trim() !== "" || fDesig !== "all" || fGroup !== "all" || fStatus !== "all";
 
@@ -271,35 +282,35 @@ export default function EmployeesPage() {
         toast.error("No rows found in file");
         return;
       }
-// ============================================================
-// STRICT FORMAT CHECK — only accept our own exported template
-// ============================================================
-const EXPECTED_COLUMNS = [
-  "Name *",
-  "PF Number *",
-  "Token No *",
-  "Designation",
-  "Batch",
-  "Group",
-  "Phone",
-  "Address",
-  "Date of Birth",
-  "Date of Joining",
-];
+      // ============================================================
+      // STRICT FORMAT CHECK — only accept our own exported template
+      // ============================================================
+      const EXPECTED_COLUMNS = [
+        "Name *",
+        "PF Number *",
+        "Token No *",
+        "Designation",
+        "Batch",
+        "Group",
+        "Phone",
+        "Address",
+        "Date of Birth",
+        "Date of Joining",
+      ];
 
-const actualColumns = Object.keys(rows[0]).map((k) => k.trim());
-const sameOrder =
-  actualColumns.length === EXPECTED_COLUMNS.length &&
-  EXPECTED_COLUMNS.every((col, i) => actualColumns[i] === col);
+      const actualColumns = Object.keys(rows[0]).map((k) => k.trim());
+      const sameOrder =
+        actualColumns.length === EXPECTED_COLUMNS.length &&
+        EXPECTED_COLUMNS.every((col, i) => actualColumns[i] === col);
 
-if (!sameOrder) {
-  toast.error(
-    'This file\'s columns don\'t match the required format. Please click "Download Excel" first to get the correct template, fill it in, and re-upload.',
-    { duration: 8000 },
-  );
-  if (fileRef.current) fileRef.current.value = "";
-  return;
-}
+      if (!sameOrder) {
+        toast.error(
+          "This file's columns don't match the required format. Please click \"Download Excel\" first to get the correct template, fill it in, and re-upload.",
+          { duration: 8000 },
+        );
+        if (fileRef.current) fileRef.current.value = "";
+        return;
+      }
       /**
        * Find column key in the row using flexible matching
        * @param row - The data row object
@@ -350,15 +361,15 @@ if (!sameOrder) {
 
       let added = 0; // Count of successfully imported employees
       let skipped = 0; // Count of skipped rows
+      const failures: Array<{ name: string; pfNumber: string; tokenNo: string; reason: string }> = [];
+
 
       // Process each row
       for (const r of rows) {
         // Skip completely empty rows
         const hasData = Object.values(r).some((v) => v && String(v).trim() !== "");
-        if (!hasData) {
-          skipped++;
-          continue;
-        }
+  if (!hasData) { skipped++; continue; }
+
 
         // Extract required fields
         const name = getValue(r, ["Name", "Name *", "Employee Name"]);
@@ -373,13 +384,7 @@ if (!sameOrder) {
 
         // Extract optional fields with defaults
         const designation = getValue(r, ["Designation"]) || "Tech-I";
-        // const importedBatch = getValue(r, ["Batch", "Present Batch"]);
-
-        // const batchExists = batches.some(
-        //   (b) => b.name.trim().toLowerCase() === importedBatch.trim().toLowerCase(),
-        // );
-
-        // const presentBatch = batchExists ? importedBatch : "";
+       
         const importedBatchRaw = getValue(r, ["Batch", "Present Batch"]);
         let presentBatch = "";
         if (importedBatchRaw.trim()) {
@@ -395,32 +400,43 @@ if (!sameOrder) {
             .slice(0, 1) || "A";
 
         // Add employee to database via API
-        await addEmployee({
-          name,
-          pfNumber,
-          tokenNo,
-          designation,
-          presentBatch,
-          groupType: groupType as any,
-          phone: getValue(r, ["Phone", "Mobile"]),
-          address: getValue(r, ["Address"]),
-          dateOfBirth: getValue(r, ["Date of Birth", "DOB"]),
-          dateOfJoining: getValue(r, ["Date of Joining", "DOJ"]),
-        });
-        added++;
-      }
+         try {
+    await addEmployee({
+      name, pfNumber, tokenNo, designation, presentBatch,
+      groupType: groupType as any,
+      phone: getValue(r, ["Phone", "Mobile"]),
+      address: getValue(r, ["Address"]),
+      dateOfBirth: getValue(r, ["Date of Birth", "DOB"]),
+      dateOfJoining: getValue(r, ["Date of Joining", "DOJ"]),
+    });
+    added++;
+  } catch (err) {
+    failures.push({
+      name, pfNumber, tokenNo,
+      reason: err instanceof Error ? err.message : "Failed to add employee",
+    });
+  }
+}
 
-      // Show success message with import stats
-      toast.success(`Imported ${added} employee(s)${skipped ? ` · skipped ${skipped}` : ""}`);
-    } catch (err) {
-      console.error(err);
-      toast.error("Failed to read the Excel file");
-    } finally {
-      // Reset file input
-      if (fileRef.current) fileRef.current.value = "";
-    }
-  };
-
+toast.success(
+  `Imported ${added} employee(s)${skipped ? ` · skipped ${skipped}` : ""}${failures.length ? ` · ${failures.length} failed` : ""}`,
+);
+if (failures.length > 0) {
+  setImportFailures(failures);
+  setImportFailuresOpen(true);
+}
+} catch (err) {
+  toast.error(
+    err instanceof Error
+      ? err.message
+      : "Failed to import employees"
+  );
+} finally {
+  if (fileRef.current) {
+    fileRef.current.value = "";
+  }
+}
+};
   // ============================================================
   // ACTION HANDLERS (with confirmation)
   // ============================================================
@@ -580,7 +596,32 @@ if (!sameOrder) {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
+      {/* ========== warning modal ========== */}
+<Dialog open={importFailuresOpen} onOpenChange={setImportFailuresOpen}>
+  <DialogContent className="max-w-lg">
+    <DialogHeader>
+      <DialogTitle>Some employees were not imported</DialogTitle>
+      <DialogDescription>
+        {importFailures.length} row(s) were skipped because their PF Number or Token No
+        already exists in the system.
+      </DialogDescription>
+    </DialogHeader>
+    <div className="max-h-64 overflow-y-auto space-y-2 text-sm">
+      {importFailures.map((f, i) => (
+        <div key={i} className="rounded-md border border-rose-200 bg-rose-50 p-2">
+          <div className="font-semibold">{f.name}</div>
+          <div className="text-xs text-slate-600">PF: {f.pfNumber} · Token: {f.tokenNo}</div>
+          <div className="text-xs text-rose-700 mt-1">{f.reason}</div>
+        </div>
+      ))}
+    </div>
+    <DialogFooter>
+      <Button onClick={() => setImportFailuresOpen(false)} className="bg-[#0b2545] hover:bg-[#0b2545]/90">
+        Close
+      </Button>
+    </DialogFooter>
+  </DialogContent>
+</Dialog>
       {/* ========== SEARCH & FILTERS ========== */}
       <Card>
         <CardContent className="p-4 grid grid-cols-1 md:grid-cols-4 gap-3">

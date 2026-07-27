@@ -15,7 +15,15 @@ async function createEmployee(req, res) {
     return res.status(400).json({ error: "name, pfNumber, and tokenNo are required" });
   }
 
-  // slNo auto-increments off the max existing value — mirrors addEmployee in DataContext.tsx.
+  const [dupPf] = await sql`SELECT id FROM employees WHERE pf_number = ${b.pfNumber}`;
+  if (dupPf) {
+    return res.status(409).json({ error: `PF Number "${b.pfNumber}" already exists` });
+  }
+  const [dupToken] = await sql`SELECT id FROM employees WHERE token_no = ${b.tokenNo}`;
+  if (dupToken) {
+    return res.status(409).json({ error: `Token No "${b.tokenNo}" already exists` });
+  }
+
   const [{ next_sl_no }] = await sql`SELECT COALESCE(MAX(sl_no), 0) + 1 AS next_sl_no FROM employees`;
 
   const [row] = await sql`
@@ -39,11 +47,23 @@ async function updateEmployee(req, res) {
   const [existing] = await sql`SELECT * FROM employees WHERE id = ${id}`;
   if (!existing) return res.status(404).json({ error: "Employee not found" });
 
+  const newPf = b.pfNumber ?? existing.pf_number;
+  const newToken = b.tokenNo ?? existing.token_no;
+
+  if (newPf !== existing.pf_number) {
+    const [dupPf] = await sql`SELECT id FROM employees WHERE pf_number = ${newPf} AND id != ${id}`;
+    if (dupPf) return res.status(409).json({ error: `PF Number "${newPf}" already exists` });
+  }
+  if (newToken !== existing.token_no) {
+    const [dupToken] = await sql`SELECT id FROM employees WHERE token_no = ${newToken} AND id != ${id}`;
+    if (dupToken) return res.status(409).json({ error: `Token No "${newToken}" already exists` });
+  }
+
   const [row] = await sql`
     UPDATE employees SET
       name = ${b.name ?? existing.name},
-      pf_number = ${b.pfNumber ?? existing.pf_number},
-      token_no = ${b.tokenNo ?? existing.token_no},
+      pf_number = ${newPf},
+      token_no = ${newToken},
       designation = ${b.designation ?? existing.designation},
       present_batch = ${b.presentBatch ?? existing.present_batch},
       group_type = ${b.groupType ?? existing.group_type},
