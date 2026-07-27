@@ -148,7 +148,7 @@ export function Combobox({
               {options.map((o) => (
                 <CommandItem
                   key={o.value}
-                  value={`${o.label} ${o.hint ?? ""}`}
+                  value={o.searchValue ?? `${o.label} ${o.hint ?? ""}`}
                   onSelect={() => {
                     onChange(o.value);
                     setQuery("");

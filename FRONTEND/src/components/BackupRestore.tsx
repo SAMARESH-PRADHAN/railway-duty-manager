@@ -13,6 +13,9 @@ import { buildBackupWorkbook, parseBackupWorkbook } from "@/lib/backup-excel";
 import { DatabaseBackup, DatabaseZap } from "lucide-react";
 import { toast } from "sonner";
 
+// Hardcoded — not stored in DB, only checked client-side before restore.
+const RESTORE_PASSWORD = "vanderajdhani"; // change this to whatever you want
+
 export function BackupRestore() {
   const { refresh } = useData();
   const confirm = useConfirm();
@@ -22,6 +25,11 @@ export function BackupRestore() {
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
   const [busy, setBusy] = useState(false);
+
+  // --- NEW: password-gate state ---
+  const [passwordOpen, setPasswordOpen] = useState(false);
+  const [passwordInput, setPasswordInput] = useState("");
+  const [passwordError, setPasswordError] = useState("");
 
   const runBackup = async () => {
     try {
@@ -64,6 +72,25 @@ export function BackupRestore() {
     }
   };
 
+  // --- NEW: open password dialog instead of file picker directly ---
+  const startRestoreFlow = () => {
+    setPasswordInput("");
+    setPasswordError("");
+    setPasswordOpen(true);
+  };
+
+  const submitPassword = () => {
+    if (passwordInput === RESTORE_PASSWORD) {
+      setPasswordOpen(false);
+      setPasswordInput("");
+      setPasswordError("");
+      // Only now open the file picker
+      fileRef.current?.click();
+    } else {
+      setPasswordError("Authentication error: incorrect password.");
+    }
+  };
+
   return (
     <div className="space-y-2">
       <input
@@ -88,10 +115,47 @@ export function BackupRestore() {
         variant="outline"
         size="sm"
         className="w-full bg-transparent border-white/25 text-white hover:bg-white/10 hover:text-white"
-        onClick={() => fileRef.current?.click()}
+        onClick={startRestoreFlow}
       >
         <DatabaseZap className="h-3 w-3 mr-2" /> Restore Data
       </Button>
+
+      {/* --- NEW: Password dialog --- */}
+      <Dialog
+        open={passwordOpen}
+        onOpenChange={(o) => {
+          setPasswordOpen(o);
+          if (!o) { setPasswordInput(""); setPasswordError(""); }
+        }}
+      >
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Enter Restore Password</DialogTitle>
+            <DialogDescription>
+              Restoring data is a destructive action. Please enter the password to continue.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Label className="text-xs">Password</Label>
+            <Input
+              type="password"
+              value={passwordInput}
+              onChange={(e) => { setPasswordInput(e.target.value); setPasswordError(""); }}
+              onKeyDown={(e) => { if (e.key === "Enter") submitPassword(); }}
+              autoFocus
+            />
+            {passwordError && (
+              <p className="text-xs text-rose-600 font-medium">{passwordError}</p>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPasswordOpen(false)}>Cancel</Button>
+            <Button className="bg-[#0b2545] hover:bg-[#0b2545]/90" onClick={submitPassword}>
+              Confirm
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={backupOpen} onOpenChange={setBackupOpen}>
         <DialogContent className="max-w-md">
