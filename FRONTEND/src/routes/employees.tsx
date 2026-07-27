@@ -271,7 +271,35 @@ export default function EmployeesPage() {
         toast.error("No rows found in file");
         return;
       }
+// ============================================================
+// STRICT FORMAT CHECK — only accept our own exported template
+// ============================================================
+const EXPECTED_COLUMNS = [
+  "Name *",
+  "PF Number *",
+  "Token No *",
+  "Designation",
+  "Batch",
+  "Group",
+  "Phone",
+  "Address",
+  "Date of Birth",
+  "Date of Joining",
+];
 
+const actualColumns = Object.keys(rows[0]).map((k) => k.trim());
+const sameOrder =
+  actualColumns.length === EXPECTED_COLUMNS.length &&
+  EXPECTED_COLUMNS.every((col, i) => actualColumns[i] === col);
+
+if (!sameOrder) {
+  toast.error(
+    'This file\'s columns don\'t match the required format. Please click "Download Excel" first to get the correct template, fill it in, and re-upload.',
+    { duration: 8000 },
+  );
+  if (fileRef.current) fileRef.current.value = "";
+  return;
+}
       /**
        * Find column key in the row using flexible matching
        * @param row - The data row object
