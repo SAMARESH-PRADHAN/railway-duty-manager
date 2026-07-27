@@ -12,8 +12,8 @@ export const api = {
   },
 
   async createEmployee(
-    data: Omit<Employee, "id" | "slNo" | "createdAt" | "updatedAt" | "isDeleted" | "status"> & 
-      Partial<Pick<Employee, "status">>
+    data: Omit<Employee, "id" | "slNo" | "createdAt" | "updatedAt" | "isDeleted" | "status"> &
+      Partial<Pick<Employee, "status">>,
   ): Promise<Employee> {
     const res = await fetch(`${API_BASE}/employees`, {
       method: "POST",
@@ -81,8 +81,8 @@ export const api = {
   },
 
   async createTrain(
-    data: Omit<Train, "id" | "createdAt" | "updatedAt" | "isDeleted" | "status"> & 
-      Partial<Pick<Train, "status">>
+    data: Omit<Train, "id" | "createdAt" | "updatedAt" | "isDeleted" | "status"> &
+      Partial<Pick<Train, "status">>,
   ): Promise<Train> {
     const res = await fetch(`${API_BASE}/trains`, {
       method: "POST",
@@ -184,17 +184,17 @@ export const api = {
   // ============ BATCHES ============
 
   async findOrCreateBatch(name: string): Promise<Batch> {
-  const res = await fetch(`${API_BASE}/batches/find-or-create`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ name }),
-  });
-  if (!res.ok) {
-    const error = await res.json();
-    throw new Error(error.error || "Failed to create batch");
-  }
-  return res.json();
-},
+    const res = await fetch(`${API_BASE}/batches/find-or-create`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name }),
+    });
+    if (!res.ok) {
+      const error = await res.json();
+      throw new Error(error.error || "Failed to create batch");
+    }
+    return res.json();
+  },
 
   async getBatches(includeDeleted = false): Promise<Batch[]> {
     const res = await fetch(`${API_BASE}/batches?includeDeleted=${includeDeleted}`);
@@ -225,12 +225,12 @@ export const api = {
   },
 
   async deleteEmployee(id: string): Promise<void> {
-  const res = await fetch(`${API_BASE}/employees/${id}`, { method: "DELETE" });
-  if (!res.ok) {
-    const error = await res.json();
-    throw new Error(error.error || "Failed to delete employee");
-  }
-},
+    const res = await fetch(`${API_BASE}/employees/${id}`, { method: "DELETE" });
+    if (!res.ok) {
+      const error = await res.json();
+      throw new Error(error.error || "Failed to delete employee");
+    }
+  },
 
   async softDeleteBatch(id: string): Promise<Batch> {
     const res = await fetch(`${API_BASE}/batches/${id}/soft-delete`, {
@@ -253,7 +253,29 @@ export const api = {
     }
     return res.json();
   },
-  
+
+// ============ BACKUP FILE/ RESTORE FILE ============
+
+  async getBackup(from?: string, to?: string): Promise<any> {
+    const qs = from && to ? `?from=${from}&to=${to}` : "";
+    const res = await fetch(`${API_BASE}/backup/export${qs}`);
+    if (!res.ok) throw new Error("Failed to export backup");
+    return res.json();
+  },
+
+  async restoreBackup(payload: any): Promise<any> {
+    const res = await fetch(`${API_BASE}/backup/restore`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) {
+      const error = await res.json();
+      throw new Error(error.error || "Failed to restore backup");
+    }
+    return res.json();
+  },
+
   // ============ SEED / RESET ============
   async resetDemo(): Promise<{ employees: number; trains: number; dutySheets: number }> {
     const res = await fetch(`${API_BASE}/seed/reset`, {

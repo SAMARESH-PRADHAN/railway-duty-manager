@@ -4,6 +4,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { useData } from "@/context/DataContext";
 import { Button } from "@/components/ui/button";
 import { useConfirm } from "@/components/ConfirmProvider";
+import { BackupRestore } from "@/components/BackupRestore";
 // import { toast } from "sonner";
 
 const nav = [
@@ -66,24 +67,9 @@ export function AppLayout({ children }: { children: ReactNode }) {
               );
             })}
           </nav>
-          {/* <div className="absolute bottom-0 left-0 right-0 p-3 border-t border-white/10">
-            <Button
-              variant="outline"
-              size="sm"
-              className="w-full bg-transparent border-white/25 text-white hover:bg-white/10 hover:text-white"
-              onClick={async () => {
-                const ok = await confirm({
-                  title: "Reset all demo data?",
-                  description: "This clears all local records and reseeds sample data.",
-                  confirmText: "Reset",
-                  destructive: true,
-                });
-                if (ok) { resetDemo(); toast.success("Demo data reset"); }
-              }}
-            >
-              <RefreshCw className="h-3 w-3 mr-2" /> Reset Demo Data
-            </Button>
-          </div> */}
+         <div className="absolute bottom-0 left-0 right-0 p-3 border-t border-white/10">
+  <BackupRestore />
+</div>
         </aside>
 
         <main className="flex-1 min-w-0 p-4 md:p-8">
