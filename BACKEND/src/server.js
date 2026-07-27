@@ -13,6 +13,7 @@ const employeesRoutes = require("./routes/employees.routes");
 const trainsRoutes = require("./routes/trains.routes");
 const dutySheetsRoutes = require("./routes/duty-sheets.routes");
 const seedRoutes = require("./routes/seed.routes");
+const backupRoutes = require("./routes/backup.routes"); //for backup file
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -29,6 +30,7 @@ app.use("/api/trains", trainsRoutes);
 app.use("/api/duty-sheets", dutySheetsRoutes);
 app.use("/api/seed", seedRoutes);
 app.use("/api/batches", batchesRoutes);
+app.use("/api/backup", backupRoutes);
 
 // Central error handler
 app.use((err, req, res, next) => {
