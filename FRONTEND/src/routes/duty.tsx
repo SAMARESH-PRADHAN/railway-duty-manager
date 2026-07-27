@@ -398,11 +398,11 @@ export default function DutyPage() {
               filter={(value, search) => {
                 const s = search.trim().toLowerCase();
                 if (!s) return 1;
-                // match only if a whole word (first name, last name, or token) STARTS WITH what's typed
+                // match if the typed text appears anywhere inside a name word or the token number
                 return value
                   .toLowerCase()
                   .split(/\s+/)
-                  .some((word) => word.startsWith(s))
+                  .some((word) => word.includes(s))
                   ? 1
                   : 0;
               }}
