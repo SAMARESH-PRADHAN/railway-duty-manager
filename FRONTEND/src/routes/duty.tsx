@@ -393,7 +393,7 @@ export default function DutyPage() {
                 value: e.id,
                 label: `${e.name} — Token ${e.tokenNo}`,
                 hint: `PF ${e.pfNumber} · ${e.designation} · Group ${e.groupType}`,
-                searchValue: `${e.name} ${e.tokenNo}`, // NEW — only name + token are searchable
+                searchValue: `${e.name} ${e.tokenNo} ${e.pfNumber}`, // NEW — only name + token are searchable
               }))}
               filter={(value, search) => {
                 const s = search.trim().toLowerCase();
