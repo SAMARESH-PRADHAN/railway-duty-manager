@@ -125,25 +125,28 @@ export function Combobox({
         <Command filter={filter}>
           <CommandInput placeholder="Search…" value={query} onValueChange={setQuery} />
           <CommandList className="max-h-[50vh]">
-            {allowCreate && query.trim() && !exactMatch ? (
-              <CommandGroup>
-                {options.map((o) => (
-                  <CommandItem
-                    key={o.value}
-                    value={o.searchValue ?? `${o.label} ${o.hint ?? ""}`}
-                    onSelect={() => {
-                      onChange(o.value);
-                      setQuery("");
-                      setOpen(false);
-                    }}
-                  >
-                    + Add "{query.trim()}"
-                  </CommandItem>
-                ))}
-              </CommandGroup>
-            ) : (
-              <CommandEmpty>{emptyText}</CommandEmpty>
-            )}
+            {allowCreate && query.trim() && !exactMatch && (
+  <CommandGroup>
+    <CommandItem
+      value={`__create__${query.trim()}`}
+      onSelect={async () => {
+        const newValue = query.trim();
+        if (onCreate) {
+          await onCreate(newValue);   // caller creates the batch AND updates selection
+        } else {
+          onChange(newValue);
+        }
+        setQuery("");
+        setOpen(false);
+      }}
+    >
+      + Add "{query.trim()}"
+    </CommandItem>
+  </CommandGroup>
+)}
+{!(allowCreate && query.trim() && !exactMatch) && (
+  <CommandEmpty>{emptyText}</CommandEmpty>
+)}
             <CommandGroup>
               {options.map((o) => (
                 <CommandItem
