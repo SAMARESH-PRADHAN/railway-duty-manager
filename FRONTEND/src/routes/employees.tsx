@@ -687,7 +687,7 @@ if (failures.length > 0) {
                     <td>{e.pfNumber}</td>
                     <td>{e.tokenNo}</td>
                     <td>{e.designation}</td>
-                    <td className="text-slate-600">{e.presentBatch}</td>
+                    <td className="text-slate-600">{e.presentBatch || "—"}</td>
                     <td>
                       <Badge variant="outline">Group {e.groupType}</Badge>
                     </td>

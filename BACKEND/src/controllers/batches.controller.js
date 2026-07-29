@@ -126,7 +126,26 @@ async function softDeleteBatch(req, res) {
   if (!row) return res.status(404).json({ error: "Batch not found" });
   res.json(await getBatchWithDays(id));
 }
+// Hard delete: removes the batch + its roster days, and clears any
+// employee currently pointing at this batch (by batch_id or by name).
+async function deleteBatch(req, res) {
+  const { id } = req.params;
 
+  const [existing] = await sql`SELECT * FROM batches WHERE id = ${id}`;
+  if (!existing) return res.status(404).json({ error: "Batch not found" });
+
+  // Clear references on employees first (so nothing points at a dead batch)
+  await sql`
+    UPDATE employees
+    SET batch_id = NULL, present_batch = ''
+    WHERE batch_id = ${id} OR LOWER(present_batch) = LOWER(${existing.name})`;
+
+  // batch_roster_days has ON DELETE CASCADE on batch_id, but delete explicitly to be safe
+  await sql`DELETE FROM batch_roster_days WHERE batch_id = ${id}`;
+  await sql`DELETE FROM batches WHERE id = ${id}`;
+
+  res.status(204).send();
+}
 async function restoreBatch(req, res) {
   const { id } = req.params;
   const [row] = await sql`UPDATE batches SET is_deleted = FALSE WHERE id = ${id} RETURNING *`;
@@ -141,4 +160,5 @@ module.exports = {
   softDeleteBatch,
   restoreBatch,
   findOrCreateBatch,
+  deleteBatch,
 };

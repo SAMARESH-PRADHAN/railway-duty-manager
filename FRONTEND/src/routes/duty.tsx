@@ -434,7 +434,7 @@ export default function DutyPage() {
 
                   <div className="font-semibold text-blue-700">
                     {/* {employeeBatch?.name ?? "Not Assigned"} */}
-                    {emp.presentBatch ?? "Not Assigned"}
+                    {emp.presentBatch || "Not Assigned"}
                   </div>
                 </div>
               </div>
