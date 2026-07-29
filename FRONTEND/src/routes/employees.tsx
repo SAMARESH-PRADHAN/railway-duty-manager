@@ -784,16 +784,17 @@ if (failures.length > 0) {
             </Field> */}
 
             <Field label="Present Batch">
-              <Combobox
-                value={form.presentBatch as string}
-                onChange={(v) => setForm({ ...form, presentBatch: v })}
-                options={batches.map((b) => ({ value: b.name, label: b.name }))}
-                allowCreate
-                onCreate={async (name) => {
-                  await findOrCreateBatch(name);
-                }}
-              />
-            </Field>
+  <Combobox
+    value={form.presentBatch as string}
+    onChange={(v) => setForm({ ...form, presentBatch: v })}
+    options={batches.map((b) => ({ value: b.name, label: b.name }))}
+    allowCreate
+    onCreate={async (name) => {
+      const created = await findOrCreateBatch(name);
+      setForm({ ...form, presentBatch: created.name }); // ✅ new line
+    }}
+  />
+</Field>
             <Field label="Group Type">
               <Combobox
                 value={form.groupType as string}

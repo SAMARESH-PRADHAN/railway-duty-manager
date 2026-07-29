@@ -32,7 +32,7 @@ const createDefaultDays = (): Batch["days"] =>
   }));
 
 const BatchesPage = () => {
-  const { batches, saveBatch, softDeleteBatch, refresh } = useData();
+  const { batches, saveBatch, softDeleteBatch, refresh, findOrCreateBatch } = useData();
   const confirm = useConfirm();
   const [editingId, setEditingId] = useState<string>();
 
@@ -41,10 +41,10 @@ const BatchesPage = () => {
   const [search, setSearch] = useState("");
   const [selectedNewBatchId, setSelectedNewBatchId] = useState<string>(""); // add
   const filteredBatches = useMemo(() => {
-  return batches.filter(
-    (b) => b.rosterConfigured && b.name.toLowerCase().includes(search.toLowerCase()),
-  );
-}, [batches, search]);
+    return batches.filter(
+      (b) => b.rosterConfigured && b.name.toLowerCase().includes(search.toLowerCase()),
+    );
+  }, [batches, search]);
   // Batches that exist (e.g. from employee import/form) but have no roster yet.
   const unconfiguredBatches = useMemo(() => batches.filter((b) => !b.rosterConfigured), [batches]);
   const [days, setDays] = useState(createDefaultDays());
@@ -179,16 +179,11 @@ const BatchesPage = () => {
                   <Label>Batch</Label>
 
                   {editingId ? (
-                    // Editing an already-configured batch: allow renaming freely.
                     <Input
                       value={batchName}
                       onChange={(e) => setBatchName(e.target.value)}
                       placeholder="Example : Batch A"
                     />
-                  ) : unconfiguredBatches.length === 0 ? (
-                    <div className="h-9 rounded-md border border-amber-200 bg-amber-50 px-3 flex items-center text-xs font-semibold text-amber-700">
-                      No batches waiting for a roster. Add batches from the Employees page first.
-                    </div>
                   ) : (
                     <Combobox
                       value={selectedNewBatchId}
@@ -198,7 +193,13 @@ const BatchesPage = () => {
                         setBatchName(b?.name ?? "");
                       }}
                       options={unconfiguredBatches.map((b) => ({ value: b.id, label: b.name }))}
-                      placeholder="Select a batch to configure…"
+                      placeholder="Select or type a new batch…"
+                      allowCreate
+                      onCreate={async (name) => {
+                        const created = await findOrCreateBatch(name);
+                        setSelectedNewBatchId(created.id); // ✅ select the newly created batch
+                        setBatchName(created.name);
+                      }}
                     />
                   )}
                 </div>
