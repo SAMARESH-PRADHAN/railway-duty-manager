@@ -28,6 +28,7 @@ interface DataCtx {
   batches: Batch[];
   saveBatch: (data: { id?: string; name: string; days: Batch["days"] }) => Promise<Batch>;
   softDeleteBatch: (id: string) => Promise<void>;
+  deleteBatch: (id: string) => Promise<void>;
   restoreBatch: (id: string) => Promise<void>;
   resetDemo: () => Promise<void>;
   refresh: () => Promise<void>;
@@ -156,7 +157,12 @@ const [batches, setBatches] = useState<Batch[]>([]);
     const updated = await api.softDeleteBatch(id);
     setBatches((prev) => prev.map((b) => (b.id === id ? updated : b)));
   }, []);
-
+const deleteBatch: DataCtx["deleteBatch"] = useCallback(async (id) => {
+  await api.deleteBatch(id);
+  setBatches((prev) => prev.filter((b) => b.id !== id));
+  // employees may have had present_batch cleared server-side — refresh to reflect it
+  await loadData();
+}, [loadData]);
   const restoreBatch: DataCtx["restoreBatch"] = useCallback(async (id) => {
     const updated = await api.restoreBatch(id);
     setBatches((prev) => prev.map((b) => (b.id === id ? updated : b)));
@@ -206,6 +212,7 @@ const [batches, setBatches] = useState<Batch[]>([]);
     deleteDutySheet,
     saveBatch,        // <-- new
     softDeleteBatch,  // <-- new
+    deleteBatch,
     restoreBatch,
     resetDemo,
     refresh,
@@ -230,6 +237,7 @@ const [batches, setBatches] = useState<Batch[]>([]);
     deleteDutySheet,
      saveBatch,        // <-- new
     softDeleteBatch,  // <-- new
+    deleteBatch,
     restoreBatch,
     resetDemo,
     refresh,

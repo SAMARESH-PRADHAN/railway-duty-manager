@@ -242,7 +242,13 @@ export const api = {
     }
     return res.json();
   },
-
+async deleteBatch(id: string): Promise<void> {
+  const res = await fetch(`${API_BASE}/batches/${id}`, { method: "DELETE" });
+  if (!res.ok) {
+    const error = await res.json();
+    throw new Error(error.error || "Failed to delete batch");
+  }
+},
   async restoreBatch(id: string): Promise<Batch> {
     const res = await fetch(`${API_BASE}/batches/${id}/restore`, {
       method: "PATCH",

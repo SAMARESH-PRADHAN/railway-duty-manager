@@ -7,6 +7,7 @@ const {
   softDeleteBatch,
   restoreBatch,
   findOrCreateBatch,
+   deleteBatch,
 } = require("../controllers/batches.controller");
 
 const router = express.Router();
@@ -17,5 +18,7 @@ router.post("/find-or-create", asyncHandler(findOrCreateBatch));
 router.post("/", asyncHandler(upsertBatch));
 router.patch("/:id/soft-delete", asyncHandler(softDeleteBatch));
 router.patch("/:id/restore", asyncHandler(restoreBatch));
+router.delete("/:id", asyncHandler(deleteBatch)); // add this
+
 
 module.exports = router;

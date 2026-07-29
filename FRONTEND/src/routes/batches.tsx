@@ -32,7 +32,7 @@ const createDefaultDays = (): Batch["days"] =>
   }));
 
 const BatchesPage = () => {
-  const { batches, saveBatch, softDeleteBatch, refresh, findOrCreateBatch } = useData();
+  const { batches, saveBatch, deleteBatch, refresh, findOrCreateBatch } = useData();
   const confirm = useConfirm();
   const [editingId, setEditingId] = useState<string>();
 
@@ -70,12 +70,12 @@ const BatchesPage = () => {
                       setBatchName("");
                       setDays(createDefaultDays());
                     }}
-                    disabled={unconfiguredBatches.length === 0}
-                    title={
-                      unconfiguredBatches.length === 0
-                        ? "No new batches waiting for a roster"
-                        : undefined
-                    }
+                    // disabled={unconfiguredBatches.length === 0}
+                    // title={
+                    //   unconfiguredBatches.length === 0
+                    //     ? "No new batches waiting for a roster"
+                    //     : undefined
+                    // }
                   >
                     <Plus className="w-4 h-4 mr-2" />
                     Add Roster Duty
@@ -141,7 +141,7 @@ const BatchesPage = () => {
                               </Button>
                             </Button>
 
-                            <Button variant="destructive" size="sm">
+                            {/* <Button variant="destructive" size="sm">
                               <Button
                                 variant="destructive"
                                 size="sm"
@@ -149,21 +149,20 @@ const BatchesPage = () => {
                                   const ok = await confirm({
                                     title: `Delete "${batch.name}"?`,
                                     description:
-                                      "This batch will be archived and can be restored later.",
-                                    confirmText: "Delete",
+                                      "This will permanently delete this roster duty batch and remove it from any employees currently assigned to it. This cannot be undone.",
+                                    confirmText: "Delete Permanently",
                                     destructive: true,
                                   });
 
                                   if (!ok) return;
 
-                                  await softDeleteBatch(batch.id);
-
-                                  toast.success("Batch deleted successfully!");
+                                  await deleteBatch(batch.id);
+                                  toast.success("Batch permanently deleted");
                                 }}
                               >
                                 <Trash2 className="w-4 h-4" />
                               </Button>
-                            </Button>
+                            </Button> */}
                           </TableCell>
                         </TableRow>
                       ))
