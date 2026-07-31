@@ -1,19 +1,18 @@
 require("dotenv").config();
 
-
 const fs = require("fs");
 const path = require("path");
-const batchesRoutes = require("./routes/batches.routes");
 const express = require("express");
 const cors = require("cors");
 
+const batchesRoutes = require("./routes/batches.routes");
 const { testConnection, sql, pool } = require("./lib/db");
 
 const employeesRoutes = require("./routes/employees.routes");
 const trainsRoutes = require("./routes/trains.routes");
 const dutySheetsRoutes = require("./routes/duty-sheets.routes");
 const seedRoutes = require("./routes/seed.routes");
-const backupRoutes = require("./routes/backup.routes"); //for backup file
+const backupRoutes = require("./routes/backup.routes");
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -25,6 +24,8 @@ app.get("/health", async (req, res) => {
   res.json({ status: "ok" });
 });
 
+// ==================== API ROUTES ====================
+
 app.use("/api/employees", employeesRoutes);
 app.use("/api/trains", trainsRoutes);
 app.use("/api/duty-sheets", dutySheetsRoutes);
@@ -32,7 +33,19 @@ app.use("/api/seed", seedRoutes);
 app.use("/api/batches", batchesRoutes);
 app.use("/api/backup", backupRoutes);
 
-// Central error handler
+// ==================== REACT FRONTEND ====================
+
+const frontendPath = path.join(__dirname, "../../FRONTEND/dist");
+
+app.use(express.static(frontendPath));
+
+// Any route that doesn't start with /api will serve React
+app.get(/^\/(?!api).*/, (req, res) => {
+  res.sendFile(path.join(frontendPath, "index.html"));
+});
+
+// ==================== ERROR HANDLER ====================
+
 app.use((err, req, res, next) => {
   console.error(err);
   res.status(err.status || 500).json({
@@ -40,22 +53,21 @@ app.use((err, req, res, next) => {
   });
 });
 
-// Handle unhandled promise rejections
+// ==================== PROCESS HANDLERS ====================
+
 process.on("unhandledRejection", (reason) => {
   console.error("Unhandled rejection:", reason);
 });
 
-// Applies sql/schema.sql automatically on every boot. Uses the raw Pool
-// (not the tagged-template `sql` helper) because schema.sql has multiple
-// semicolon-separated statements. Safe to run repeatedly — every statement
-// uses IF NOT EXISTS / CREATE OR REPLACE / DROP ... IF EXISTS.
+// ==================== APPLY SCHEMA ====================
+
 async function applySchema() {
   const schemaPath = path.join(__dirname, "..", "sql", "schema.sql");
   const schemaSql = fs.readFileSync(schemaPath, "utf8");
 
   if (pool) {
-    // Local pg driver — pool is exported from lib/db.js
     const client = await pool.connect();
+
     try {
       await client.query(schemaSql);
       console.log("✅ Schema applied/verified.");
@@ -63,10 +75,14 @@ async function applySchema() {
       client.release();
     }
   } else {
-    // Neon driver — no pool object exported; use its own Pool just for this.
     const { Pool } = require("@neondatabase/serverless");
-    const neonPool = new Pool({ connectionString: process.env.NEON_DATABASE_URL });
+
+    const neonPool = new Pool({
+      connectionString: process.env.NEON_DATABASE_URL,
+    });
+
     const client = await neonPool.connect();
+
     try {
       await client.query(schemaSql);
       console.log("✅ Schema applied/verified (Neon).");
@@ -77,12 +93,16 @@ async function applySchema() {
   }
 }
 
+// ==================== START SERVER ====================
+
 async function startServer() {
   await testConnection();
   await applySchema();
 
-  app.listen(PORT, () => {
-    console.log(`🚀 OTA Manager backend running on http://localhost:${PORT}`);
+  app.listen(PORT, "0.0.0.0", () => {
+    console.log(`🚀 OTA Manager running`);
+    console.log(`🌐 Local: http://localhost:${PORT}`);
+    console.log(`📡 LAN: http://<YOUR-IP>:${PORT}`);
   });
 }
 
