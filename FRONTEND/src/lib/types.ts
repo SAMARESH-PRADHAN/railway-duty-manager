@@ -1,6 +1,23 @@
-export type Designation = "Asst" | "Tech-I" | "Tech-II" | "Tech-III" | "Sr.Tech" | "Helper" | string;
-export type GroupType = "A" | "B" | "C" | "D" | "E" | "F";
+// export type Designation = "Asst" | "Tech-I" | "Tech-II" | "Tech-III" | "Sr.Tech" | "Helper" | string;
+// export type GroupType = "A" | "B" | "C" | "D" | "E" | "F";
 export type TrainCategory = "Vande Bharat" | "Rajdhani" | "Shatabdi" | string;
+
+
+export interface DesignationRecord  {
+  id: string;
+  name: string;
+  isDeleted: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface GroupTypeRecord {
+  id: string;
+  name: string;
+  isDeleted: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
 
 export interface Employee {
   id: string;
@@ -8,10 +25,10 @@ export interface Employee {
   name: string;
   pfNumber: string;
   tokenNo: string;
-  designation: Designation;
+  designation: string;
   presentBatch: string;
   batchId?: string;
-  groupType: GroupType;
+  groupType: string;
   address: string;
   phone: string;
   dateOfBirth?: string;
@@ -26,7 +43,7 @@ export interface Train {
   id: string;
   trainNumber: string;
   trainName: string;
-  category: TrainCategory;
+  // category: TrainCategory;
   pairedTrainId?: string;
   status: "active" | "inactive";
   isDeleted: boolean;

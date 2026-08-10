@@ -29,7 +29,7 @@ function mapTrain(row) {
     id: row.id,
     trainNumber: row.train_number,
     trainName: row.train_name,
-    category: row.category,
+    // category: row.category,
     pairedTrainId: row.paired_train_id ?? undefined,
     status: row.status,
     isDeleted: row.is_deleted,
@@ -83,5 +83,13 @@ function mapBatchRosterDay(row) {
     slots: row.slots ?? [],
   };
 }
-
-module.exports = { mapEmployee, mapTrain, mapDutySheet, mapBatch, mapBatchRosterDay };
+function mapDesignation(row) {
+  if (!row) return null;
+  return { id: row.id, name: row.name, isDeleted: row.is_deleted, createdAt: row.created_at, updatedAt: row.updated_at };
+}
+function mapGroupType(row) {
+  if (!row) return null;
+  return { id: row.id, name: row.name, isDeleted: row.is_deleted, createdAt: row.created_at, updatedAt: row.updated_at };
+}
+module.exports = { mapEmployee, mapTrain, mapDutySheet, mapBatch, mapBatchRosterDay, mapDesignation, mapGroupType };
+// module.exports = { mapEmployee, mapTrain, mapDutySheet, mapBatch, mapBatchRosterDay };

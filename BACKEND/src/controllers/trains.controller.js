@@ -15,8 +15,8 @@ async function createTrain(req, res) {
     return res.status(400).json({ error: "trainNumber and trainName are required" });
   }
   const [row] = await sql`
-    INSERT INTO trains (train_number, train_name, category, paired_train_id, status)
-    VALUES (${b.trainNumber}, ${b.trainName}, ${b.category ?? "Vande Bharat"}, ${b.pairedTrainId ?? null}, ${b.status ?? "active"})
+    INSERT INTO trains (train_number, train_name, paired_train_id, status)
+VALUES (${b.trainNumber}, ${b.trainName}, ${b.pairedTrainId ?? null}, ${b.status ?? "active"})
     RETURNING *`;
   res.status(201).json(mapTrain(row));
 }
@@ -31,7 +31,7 @@ async function updateTrain(req, res) {
     UPDATE trains SET
       train_number = ${b.trainNumber ?? existing.train_number},
       train_name = ${b.trainName ?? existing.train_name},
-      category = ${b.category ?? existing.category},
+      // category = ${b.category ?? existing.category},
       paired_train_id = ${b.pairedTrainId ?? existing.paired_train_id},
       status = ${b.status ?? existing.status}
     WHERE id = ${id}

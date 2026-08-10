@@ -1,5 +1,5 @@
 // src/lib/api.ts
-import type { Employee, Train, DutySheet, Batch } from "./types";
+import type { Employee, Train, DutySheet, Batch, DesignationRecord, GroupTypeRecord } from "./types";
 
 const API_BASE = import.meta.env.VITE_API_BASE || "/api";
 
@@ -201,6 +201,7 @@ export const api = {
     if (!res.ok) throw new Error("Failed to fetch batches");
     return res.json();
   },
+  
 
   async getBatch(id: string): Promise<Batch> {
     const res = await fetch(`${API_BASE}/batches/${id}`);
@@ -242,13 +243,13 @@ export const api = {
     }
     return res.json();
   },
-async deleteBatch(id: string): Promise<void> {
-  const res = await fetch(`${API_BASE}/batches/${id}`, { method: "DELETE" });
-  if (!res.ok) {
-    const error = await res.json();
-    throw new Error(error.error || "Failed to delete batch");
-  }
-},
+  async deleteBatch(id: string): Promise<void> {
+    const res = await fetch(`${API_BASE}/batches/${id}`, { method: "DELETE" });
+    if (!res.ok) {
+      const error = await res.json();
+      throw new Error(error.error || "Failed to delete batch");
+    }
+  },
   async restoreBatch(id: string): Promise<Batch> {
     const res = await fetch(`${API_BASE}/batches/${id}/restore`, {
       method: "PATCH",
@@ -260,7 +261,7 @@ async deleteBatch(id: string): Promise<void> {
     return res.json();
   },
 
-// ============ BACKUP FILE/ RESTORE FILE ============
+  // ============ BACKUP FILE/ RESTORE FILE ============
 
   async getBackup(from?: string, to?: string): Promise<any> {
     const qs = from && to ? `?from=${from}&to=${to}` : "";
@@ -293,4 +294,85 @@ async deleteBatch(id: string): Promise<void> {
     }
     return res.json();
   },
+  // ============ DESIGNATIONS ============
+async getDesignations(): Promise<DesignationRecord[]> {
+  const res = await fetch(`${API_BASE}/designations`);
+  if (!res.ok) throw new Error("Failed to fetch designations");
+  return res.json();
+},
+
+async findOrCreateDesignation(name: string): Promise<DesignationRecord> {
+  const res = await fetch(`${API_BASE}/designations/find-or-create`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ name }),
+  });
+  if (!res.ok) {
+    const error = await res.json();
+    throw new Error(error.error || "Failed to create designation");
+  }
+  return res.json();
+},
+
+async updateDesignation(id: string, name: string): Promise<DesignationRecord> {
+  const res = await fetch(`${API_BASE}/designations/${id}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ name }),
+  });
+  if (!res.ok) {
+    const error = await res.json();
+    throw new Error(error.error || "Failed to update designation");
+  }
+  return res.json();
+},
+
+async deleteDesignation(id: string): Promise<void> {
+  const res = await fetch(`${API_BASE}/designations/${id}`, { method: "DELETE" });
+  if (!res.ok) {
+    const error = await res.json();
+    throw new Error(error.error || "Failed to delete designation");
+  }
+},
+
+// ============ GROUP TYPES ============
+async getGroupTypes(): Promise<GroupTypeRecord[]> {
+  const res = await fetch(`${API_BASE}/group-types`);
+  if (!res.ok) throw new Error("Failed to fetch group types");
+  return res.json();
+},
+
+async findOrCreateGroupType(name: string): Promise<GroupTypeRecord> {
+  const res = await fetch(`${API_BASE}/group-types/find-or-create`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ name }),
+  });
+  if (!res.ok) {
+    const error = await res.json();
+    throw new Error(error.error || "Failed to create group type");
+  }
+  return res.json();
+},
+
+async updateGroupType(id: string, name: string): Promise<GroupTypeRecord> {
+  const res = await fetch(`${API_BASE}/group-types/${id}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ name }),
+  });
+  if (!res.ok) {
+    const error = await res.json();
+    throw new Error(error.error || "Failed to update group type");
+  }
+  return res.json();
+},
+
+async deleteGroupType(id: string): Promise<void> {
+  const res = await fetch(`${API_BASE}/group-types/${id}`, { method: "DELETE" });
+  if (!res.ok) {
+    const error = await res.json();
+    throw new Error(error.error || "Failed to delete group type");
+  }
+},
 };

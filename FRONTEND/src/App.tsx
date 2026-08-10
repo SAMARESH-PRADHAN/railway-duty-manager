@@ -12,6 +12,7 @@ import DutyPage from "@/routes/duty";
 import RecordsPage from "@/routes/records";
 import ReportsPage from "@/routes/reports";
 import BatchesPage from "@/routes/batches";
+import DesignationGroupManagementPage from "@/routes/designation-group-management";
 
 function NotFound() {
   return (
@@ -55,10 +56,11 @@ export default function App() {
               <Route path="/records" element={<RecordsPage />} />
               <Route path="/reports" element={<ReportsPage />} />
               <Route path="*" element={<NotFound />} />
+              <Route path="/batches" element={<BatchesPage />} />
               <Route
-    path="/batches"
-    element={<BatchesPage />}
-/>
+                path="/designation-group-management"
+                element={<DesignationGroupManagementPage />}
+              />
             </Routes>
             <Toaster richColors position="top-right" />
           </AppLayout>

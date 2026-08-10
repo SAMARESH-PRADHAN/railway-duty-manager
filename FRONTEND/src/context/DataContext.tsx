@@ -2,7 +2,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { v4 as uuid } from "uuid";
 import { api } from "@/lib/api";
-import type { DutySheet, Employee, Train, Batch } from "@/lib/types";
+import type { DutySheet, Employee, Train, Batch, DesignationRecord, GroupTypeRecord } from "@/lib/types";
 import { recalcSheet } from "@/lib/ot-utils";
 
 interface DataCtx {
@@ -32,6 +32,15 @@ interface DataCtx {
   restoreBatch: (id: string) => Promise<void>;
   resetDemo: () => Promise<void>;
   refresh: () => Promise<void>;
+   refreshEmployeesSilently: () => Promise<void>;
+   designations: DesignationRecord[];
+  groupTypes: GroupTypeRecord[];
+  findOrCreateDesignation: (name: string) => Promise<DesignationRecord>;
+  updateDesignationName: (id: string, name: string) => Promise<void>;
+  deleteDesignationById: (id: string) => Promise<void>;
+  findOrCreateGroupType: (name: string) => Promise<GroupTypeRecord>;
+  updateGroupTypeName: (id: string, name: string) => Promise<void>;
+  deleteGroupTypeById: (id: string) => Promise<void>;
 }
 
 const Ctx = createContext<DataCtx | null>(null);
@@ -43,17 +52,23 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 const [batches, setBatches] = useState<Batch[]>([]);
+const [designations, setDesignations] = useState<DesignationRecord[]>([]);
+const [groupTypes, setGroupTypes] = useState<GroupTypeRecord[]>([]);
 
   const loadData = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
-      const [emps, trs, ds, bts] = await Promise.all([
-        api.getEmployees(),
-        api.getTrains(),
-        api.getDutySheets(),
-        api.getBatches(),
-      ]);
+     const [emps, trs, ds, bts, desigs, grps] = await Promise.all([
+  api.getEmployees(),
+  api.getTrains(),
+  api.getDutySheets(),
+  api.getBatches(),
+  api.getDesignations(),
+  api.getGroupTypes(),
+]);
+setDesignations(desigs);
+setGroupTypes(grps);
       setEmployees(emps);
       setTrains(trs);
       setDutySheets(ds);
@@ -133,6 +148,44 @@ const [batches, setBatches] = useState<Batch[]>([]);
     setTrains((prev) => prev.map((t) => t.id === id ? updated : t));
   }, []);
 
+
+const findOrCreateDesignation: DataCtx["findOrCreateDesignation"] = useCallback(async (name) => {
+  const existing = designations.find((d) => d.name.trim().toLowerCase() === name.trim().toLowerCase());
+  if (existing) return existing;
+  const created = await api.findOrCreateDesignation(name);
+  setDesignations((prev) => [...prev, created]);
+  return created;
+}, [designations]);
+
+const updateDesignationName: DataCtx["updateDesignationName"] = useCallback(async (id, name) => {
+  const updated = await api.updateDesignation(id, name);
+  setDesignations((prev) => prev.map((d) => (d.id === id ? updated : d)));
+  await loadData(); // employees' designation text changed server-side, refresh
+}, [loadData]);
+
+const deleteDesignationById: DataCtx["deleteDesignationById"] = useCallback(async (id) => {
+  await api.deleteDesignation(id);
+  setDesignations((prev) => prev.filter((d) => d.id !== id));
+}, []);
+
+const findOrCreateGroupType: DataCtx["findOrCreateGroupType"] = useCallback(async (name) => {
+  const existing = groupTypes.find((g) => g.name.trim().toLowerCase() === name.trim().toLowerCase());
+  if (existing) return existing;
+  const created = await api.findOrCreateGroupType(name);
+  setGroupTypes((prev) => [...prev, created]);
+  return created;
+}, [groupTypes]);
+
+const updateGroupTypeName: DataCtx["updateGroupTypeName"] = useCallback(async (id, name) => {
+  const updated = await api.updateGroupType(id, name);
+  setGroupTypes((prev) => prev.map((g) => (g.id === id ? updated : g)));
+  await loadData(); // employees' groupType text changed server-side, refresh
+}, [loadData]);
+
+const deleteGroupTypeById: DataCtx["deleteGroupTypeById"] = useCallback(async (id) => {
+  await api.deleteGroupType(id);
+  setGroupTypes((prev) => prev.filter((g) => g.id !== id));
+}, []);
   // ============ BATCH OPERATIONS ============
   const findOrCreateBatch: DataCtx["findOrCreateBatch"] = useCallback(async (name) => {
   const existing = batches.find(
@@ -168,6 +221,17 @@ const deleteBatch: DataCtx["deleteBatch"] = useCallback(async (id) => {
     setBatches((prev) => prev.map((b) => (b.id === id ? updated : b)));
   }, []);
 
+
+// Add near the other callbacks, e.g. right after `refresh`
+const refreshEmployeesSilently: DataCtx["refreshEmployeesSilently"] = useCallback(async () => {
+  try {
+    const emps = await api.getEmployees();
+    setEmployees(emps);
+  } catch (err) {
+    console.error("Failed to refresh employees:", err);
+  }
+}, []);
+
   // ============ DUTY SHEET OPERATIONS ============
   const saveDutySheet: DataCtx["saveDutySheet"] = useCallback(async (s) => {
     const recalced = recalcSheet({ ...s, updatedAt: new Date().toISOString() });
@@ -194,6 +258,14 @@ const deleteBatch: DataCtx["deleteBatch"] = useCallback(async (id) => {
     trains,
     dutySheets,
     batches, 
+    designations,
+  groupTypes,
+  findOrCreateDesignation,
+  updateDesignationName,
+  deleteDesignationById,
+  findOrCreateGroupType,
+  updateGroupTypeName,
+  deleteGroupTypeById,
     loading,
     error,
     findOrCreateBatch,
@@ -216,11 +288,20 @@ const deleteBatch: DataCtx["deleteBatch"] = useCallback(async (id) => {
     restoreBatch,
     resetDemo,
     refresh,
+     refreshEmployeesSilently,
   }), [
     employees,
     trains,
     dutySheets,
     batches, 
+    designations,
+  groupTypes,
+  findOrCreateDesignation,
+  updateDesignationName,
+  deleteDesignationById,
+  findOrCreateGroupType,
+  updateGroupTypeName,
+  deleteGroupTypeById,
     loading,
     error,
     addEmployee,
@@ -241,6 +322,7 @@ const deleteBatch: DataCtx["deleteBatch"] = useCallback(async (id) => {
     restoreBatch,
     resetDemo,
     refresh,
+     refreshEmployeesSilently,
   ]);
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

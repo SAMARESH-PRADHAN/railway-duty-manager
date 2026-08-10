@@ -34,7 +34,7 @@
 import { useMemo, useRef, useState } from "react";
 import * as XLSX from "xlsx";
 import { useData } from "@/context/DataContext";
-import type { Employee } from "@/lib/types";
+import type { Employee, DesignationRecord, GroupTypeRecord } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
@@ -59,10 +59,10 @@ import { toast } from "sonner";
 // ============================================================
 
 /** Available designations for railway staff */
-const DESIGNATIONS = ["Asst", "Tech-I", "Tech-II", "Tech-III", "Sr.Tech", "Helper"];
+// const DESIGNATIONS = ["Asst", "Tech-I", "Tech-II", "Tech-III", "Sr.Tech", "Helper"];
 
 /** Available group types (work groups) */
-const GROUPS = ["A", "B", "C", "D", "E", "F"];
+// const GROUPS = ["A", "B", "C", "D", "E", "F"];
 
 /** Available batch assignments */
 // const BATCHES = ["A BATCH", "B BATCH", "RAJDHANI", "SICKLINE/IOH", "VANDE BHARAT"];
@@ -72,9 +72,9 @@ const emptyForm: Partial<Employee> = {
   name: "",
   pfNumber: "",
   tokenNo: "",
-  designation: "Tech-I",
+
   presentBatch: "",
-  groupType: "A",
+
   address: "",
   phone: "",
   dateOfBirth: "",
@@ -94,13 +94,17 @@ export default function EmployeesPage() {
   const {
     employees,
     batches,
+    designations,
+    groupTypes,
     addEmployee,
     updateEmployee,
-    deleteEmployee, // add
+    deleteEmployee,
     toggleEmployeeStatus,
     softDeleteEmployee,
     restoreEmployee,
     findOrCreateBatch,
+    findOrCreateDesignation,
+    findOrCreateGroupType,
   } = useData();
 
   /** Confirmation dialog hook */
@@ -123,16 +127,15 @@ export default function EmployeesPage() {
   const fileRef = useRef<HTMLInputElement>(null); // Hidden file input ref
   const [helpOpen, setHelpOpen] = useState(false); // Help dialog visibility
 
-
   const [importFailures, setImportFailures] = useState<
-  {
-    name: string;
-    pfNumber: string;
-    tokenNo: string;
-    reason: string;
-  }[]
->([]);
-const [importFailuresOpen, setImportFailuresOpen] = useState(false);
+    {
+      name: string;
+      pfNumber: string;
+      tokenNo: string;
+      reason: string;
+    }[]
+  >([]);
+  const [importFailuresOpen, setImportFailuresOpen] = useState(false);
 
   /** Check if any filter is active (for Excel export label) */
   const hasFilter = q.trim() !== "" || fDesig !== "all" || fGroup !== "all" || fStatus !== "all";
@@ -198,8 +201,8 @@ const [importFailuresOpen, setImportFailuresOpen] = useState(false);
    */
   const save = async () => {
     // Validate required fields
-    if (!form.name || !form.pfNumber || !form.tokenNo) {
-      toast.error("Name, PF Number and Token No are required");
+    if (!form.name || !form.pfNumber || !form.tokenNo || !form.designation || !form.groupType) {
+      toast.error("Name, PF Number, Token No, Designation and Group Type are required");
       return;
     }
 
@@ -361,15 +364,17 @@ const [importFailuresOpen, setImportFailuresOpen] = useState(false);
 
       let added = 0; // Count of successfully imported employees
       let skipped = 0; // Count of skipped rows
-      const failures: Array<{ name: string; pfNumber: string; tokenNo: string; reason: string }> = [];
-
+      const failures: Array<{ name: string; pfNumber: string; tokenNo: string; reason: string }> =
+        [];
 
       // Process each row
       for (const r of rows) {
         // Skip completely empty rows
         const hasData = Object.values(r).some((v) => v && String(v).trim() !== "");
-  if (!hasData) { skipped++; continue; }
-
+        if (!hasData) {
+          skipped++;
+          continue;
+        }
 
         // Extract required fields
         const name = getValue(r, ["Name", "Name *", "Employee Name"]);
@@ -383,8 +388,10 @@ const [importFailuresOpen, setImportFailuresOpen] = useState(false);
         }
 
         // Extract optional fields with defaults
-        const designation = getValue(r, ["Designation"]) || "Tech-I";
-       
+        const designationName = getValue(r, ["Designation"]) || "Tech-I";
+        const designationRecord = await findOrCreateDesignation(designationName);
+        const designation = designationRecord.name;
+
         const importedBatchRaw = getValue(r, ["Batch", "Present Batch"]);
         let presentBatch = "";
         if (importedBatchRaw.trim()) {
@@ -392,51 +399,56 @@ const [importFailuresOpen, setImportFailuresOpen] = useState(false);
           presentBatch = created.name; // canonical stored name, avoids case-duplicates
         }
         const groupRaw = getValue(r, ["Group", "Group Type"]) || "A";
-        const groupType =
+
+        const groupName =
           groupRaw
             .replace(/group\s*/i, "")
             .trim()
             .toUpperCase()
             .slice(0, 1) || "A";
 
+        const groupTypeRecord = await findOrCreateGroupType(groupName);
+        const groupType = groupTypeRecord.name;
         // Add employee to database via API
-         try {
-    await addEmployee({
-      name, pfNumber, tokenNo, designation, presentBatch,
-      groupType: groupType as any,
-      phone: getValue(r, ["Phone", "Mobile"]),
-      address: getValue(r, ["Address"]),
-      dateOfBirth: getValue(r, ["Date of Birth", "DOB"]),
-      dateOfJoining: getValue(r, ["Date of Joining", "DOJ"]),
-    });
-    added++;
-  } catch (err) {
-    failures.push({
-      name, pfNumber, tokenNo,
-      reason: err instanceof Error ? err.message : "Failed to add employee",
-    });
-  }
-}
+        try {
+          await addEmployee({
+            name,
+            pfNumber,
+            tokenNo,
+            designation,
+            presentBatch,
+            groupType,
+            phone: getValue(r, ["Phone", "Mobile"]),
+            address: getValue(r, ["Address"]),
+            dateOfBirth: getValue(r, ["Date of Birth", "DOB"]),
+            dateOfJoining: getValue(r, ["Date of Joining", "DOJ"]),
+          });
+          added++;
+        } catch (err) {
+          failures.push({
+            name,
+            pfNumber,
+            tokenNo,
+            reason: err instanceof Error ? err.message : "Failed to add employee",
+          });
+        }
+      }
 
-toast.success(
-  `Imported ${added} employee(s)${skipped ? ` · skipped ${skipped}` : ""}${failures.length ? ` · ${failures.length} failed` : ""}`,
-);
-if (failures.length > 0) {
-  setImportFailures(failures);
-  setImportFailuresOpen(true);
-}
-} catch (err) {
-  toast.error(
-    err instanceof Error
-      ? err.message
-      : "Failed to import employees"
-  );
-} finally {
-  if (fileRef.current) {
-    fileRef.current.value = "";
-  }
-}
-};
+      toast.success(
+        `Imported ${added} employee(s)${skipped ? ` · skipped ${skipped}` : ""}${failures.length ? ` · ${failures.length} failed` : ""}`,
+      );
+      if (failures.length > 0) {
+        setImportFailures(failures);
+        setImportFailuresOpen(true);
+      }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to import employees");
+    } finally {
+      if (fileRef.current) {
+        fileRef.current.value = "";
+      }
+    }
+  };
   // ============================================================
   // ACTION HANDLERS (with confirmation)
   // ============================================================
@@ -597,31 +609,36 @@ if (failures.length > 0) {
         </DialogContent>
       </Dialog>
       {/* ========== warning modal ========== */}
-<Dialog open={importFailuresOpen} onOpenChange={setImportFailuresOpen}>
-  <DialogContent className="max-w-lg">
-    <DialogHeader>
-      <DialogTitle>Some employees were not imported</DialogTitle>
-      <DialogDescription>
-        {importFailures.length} row(s) were skipped because their PF Number or Token No
-        already exists in the system.
-      </DialogDescription>
-    </DialogHeader>
-    <div className="max-h-64 overflow-y-auto space-y-2 text-sm">
-      {importFailures.map((f, i) => (
-        <div key={i} className="rounded-md border border-rose-200 bg-rose-50 p-2">
-          <div className="font-semibold">{f.name}</div>
-          <div className="text-xs text-slate-600">PF: {f.pfNumber} · Token: {f.tokenNo}</div>
-          <div className="text-xs text-rose-700 mt-1">{f.reason}</div>
-        </div>
-      ))}
-    </div>
-    <DialogFooter>
-      <Button onClick={() => setImportFailuresOpen(false)} className="bg-[#0b2545] hover:bg-[#0b2545]/90">
-        Close
-      </Button>
-    </DialogFooter>
-  </DialogContent>
-</Dialog>
+      <Dialog open={importFailuresOpen} onOpenChange={setImportFailuresOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Some employees were not imported</DialogTitle>
+            <DialogDescription>
+              {importFailures.length} row(s) were skipped because their PF Number or Token No
+              already exists in the system.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="max-h-64 overflow-y-auto space-y-2 text-sm">
+            {importFailures.map((f, i) => (
+              <div key={i} className="rounded-md border border-rose-200 bg-rose-50 p-2">
+                <div className="font-semibold">{f.name}</div>
+                <div className="text-xs text-slate-600">
+                  PF: {f.pfNumber} · Token: {f.tokenNo}
+                </div>
+                <div className="text-xs text-rose-700 mt-1">{f.reason}</div>
+              </div>
+            ))}
+          </div>
+          <DialogFooter>
+            <Button
+              onClick={() => setImportFailuresOpen(false)}
+              className="bg-[#0b2545] hover:bg-[#0b2545]/90"
+            >
+              Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       {/* ========== SEARCH & FILTERS ========== */}
       <Card>
         <CardContent className="p-4 grid grid-cols-1 md:grid-cols-4 gap-3">
@@ -635,7 +652,7 @@ if (failures.length > 0) {
             onChange={setFDesig}
             options={[
               { value: "all", label: "All Designations" },
-              ...DESIGNATIONS.map((d) => ({ value: d, label: d })),
+              ...designations.map((d) => ({ value: d.name, label: d.name })),
             ]}
             placeholder="Designation"
           />
@@ -644,7 +661,7 @@ if (failures.length > 0) {
             onChange={setFGroup}
             options={[
               { value: "all", label: "All Groups" },
-              ...GROUPS.map((g) => ({ value: g, label: `Group ${g}` })),
+              ...groupTypes.map((g) => ({ value: g.name, label: `Group ${g.name}` })),
             ]}
             placeholder="Group"
           />
@@ -686,11 +703,13 @@ if (failures.length > 0) {
                     <td className="font-medium">{e.name}</td>
                     <td>{e.pfNumber}</td>
                     <td>{e.tokenNo}</td>
-                    <td>{e.designation}</td>
+                   <td>{e.designation}</td>
                     <td className="text-slate-600">{e.presentBatch || "—"}</td>
                     <td>
-                      <Badge variant="outline">Group {e.groupType}</Badge>
-                    </td>
+  <Badge variant="outline">
+    Group {e.groupType}
+  </Badge>
+</td>
                     <td>
                       <Badge className={e.status === "active" ? "bg-emerald-600" : "bg-slate-400"}>
                         {e.status}
@@ -770,9 +789,14 @@ if (failures.length > 0) {
             </Field>
             <Field label="Designation">
               <Combobox
-                value={form.designation as string}
-                onChange={(v) => setForm({ ...form, designation: v })}
-                options={DESIGNATIONS.map((d) => ({ value: d, label: d }))}
+                value={form.designation ?? ""}
+                onChange={(value) => setForm({ ...form, designation: value })}
+                options={designations.map((d) => ({ value: d.name, label: d.name }))}
+                allowCreate
+                onCreate={async (name) => {
+                  const created = await findOrCreateDesignation(name);
+                  setForm({ ...form, designation: created.name });
+                }}
               />
             </Field>
             {/* <Field label="Present Batch">
@@ -784,22 +808,27 @@ if (failures.length > 0) {
             </Field> */}
 
             <Field label="Present Batch">
-  <Combobox
-    value={form.presentBatch as string}
-    onChange={(v) => setForm({ ...form, presentBatch: v })}
-    options={batches.map((b) => ({ value: b.name, label: b.name }))}
-    allowCreate
-    onCreate={async (name) => {
-      const created = await findOrCreateBatch(name);
-      setForm({ ...form, presentBatch: created.name }); // ✅ new line
-    }}
-  />
-</Field>
+              <Combobox
+                value={form.presentBatch as string}
+                onChange={(v) => setForm({ ...form, presentBatch: v })}
+                options={batches.map((b) => ({ value: b.name, label: b.name }))}
+                allowCreate
+                onCreate={async (name) => {
+                  const created = await findOrCreateBatch(name);
+                  setForm({ ...form, presentBatch: created.name }); // ✅ new line
+                }}
+              />
+            </Field>
             <Field label="Group Type">
               <Combobox
-                value={form.groupType as string}
-                onChange={(v) => setForm({ ...form, groupType: v as any })}
-                options={GROUPS.map((g) => ({ value: g, label: `Group ${g}` }))}
+                value={form.groupType ?? ""}
+                onChange={(value) => setForm({ ...form, groupType: value as any })}
+                options={groupTypes.map((g) => ({ value: g.name, label: g.name }))}
+                allowCreate
+                onCreate={async (name) => {
+                  const created = await findOrCreateGroupType(name);
+                  setForm({ ...form, groupType: created.name as any });
+                }}
               />
             </Field>
             <Field label="Phone">

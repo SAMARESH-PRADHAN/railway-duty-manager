@@ -9,6 +9,7 @@ import { BackupRestore } from "@/components/BackupRestore";
 
 const nav = [
   { to: "/", label: "Dashboard", icon: LayoutDashboard },
+  { to: "/designation-group-management", label: "Designation & Group", icon: Users },
   { to: "/employees", label: "Employees", icon: Users },
   { to: "/trains", label: "Trains", icon: TrainIcon },
   { to: "/duty", label: "Extra Hour Slip", icon: ClipboardList },
