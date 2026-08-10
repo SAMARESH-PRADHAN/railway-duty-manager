@@ -70,11 +70,11 @@ function drawOtSlip(doc: jsPDF, sheet: DutySheet, emp: Employee, trains: Train[]
       paired.add(t.id);
       paired.add(p.id);
       pairs.push(
-        `To escort ${t.category} ${t.trainName.replace(/-SBC.*/, "-SBC")} (${t.trainNumber}/${p.trainNumber}) Express`,
+        `To escort ${t.trainName.replace(/-SBC.*/, "-SBC")} (${t.trainNumber}/${p.trainNumber}) Express`,
       );
     } else {
       paired.add(t.id);
-      pairs.push(`To escort ${t.category} ${t.trainName} (${t.trainNumber}) Express`);
+      pairs.push(`To escort ${t.trainName} (${t.trainNumber}) Express`);
     }
   }
   const escortLines = [...pairs];

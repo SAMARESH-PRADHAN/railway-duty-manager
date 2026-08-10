@@ -37,7 +37,6 @@ function buildSeedTrains() {
     id: randomUUID(),
     trainNumber: num,
     trainName: name,
-    category,
     status: "active",
     pairedTrainId: null,
   });

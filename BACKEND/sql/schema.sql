@@ -132,11 +132,68 @@ CREATE TABLE IF NOT EXISTS batch_roster_days (
 
 CREATE INDEX IF NOT EXISTS idx_batch_roster_days_batch_id ON batch_roster_days (batch_id);
 
+
+
+
+-- ========================================
+-- DESIGNATIONS
+-- ========================================
+CREATE TABLE IF NOT EXISTS designations (
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name        TEXT NOT NULL UNIQUE,
+  is_deleted  BOOLEAN NOT NULL DEFAULT FALSE,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- ========================================
+-- GROUP TYPES
+-- ========================================
+CREATE TABLE IF NOT EXISTS group_types (
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name        TEXT NOT NULL UNIQUE,
+  is_deleted  BOOLEAN NOT NULL DEFAULT FALSE,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+DROP TRIGGER IF EXISTS trg_designations_updated_at ON designations;
+CREATE TRIGGER trg_designations_updated_at
+  BEFORE UPDATE ON designations
+  FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+
+DROP TRIGGER IF EXISTS trg_group_types_updated_at ON group_types;
+CREATE TRIGGER trg_group_types_updated_at
+  BEFORE UPDATE ON group_types
+  FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+
+-- seed the existing hardcoded values so nothing breaks on first run
+-- INSERT INTO designations (name) VALUES
+--   ('Asst'),('Tech-I'),('Tech-II'),('Tech-III'),('Sr.Tech'),('Helper')
+-- ON CONFLICT (name) DO NOTHING;
+
+-- INSERT INTO group_types (name) VALUES
+--   ('A'),('B'),('C'),('D'),('E'),('F')
+-- ON CONFLICT (name) DO NOTHING;
+
 -- Link employees to a batch (nullable = falls back to designation-based default)
 ALTER TABLE employees ADD COLUMN IF NOT EXISTS batch_id UUID REFERENCES batches(id);
 ALTER TABLE batches ADD COLUMN IF NOT EXISTS roster_configured BOOLEAN NOT NULL DEFAULT FALSE;
 CREATE UNIQUE INDEX IF NOT EXISTS idx_employees_pf_number_unique ON employees (pf_number);
 CREATE UNIQUE INDEX IF NOT EXISTS idx_employees_token_no_unique ON employees (token_no);
+ALTER TABLE trains DROP COLUMN IF EXISTS category;
+CREATE UNIQUE INDEX IF NOT EXISTS idx_designations_name_lower
+  ON designations (LOWER(name)) WHERE is_deleted = FALSE;
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_group_types_name_lower
+  ON group_types (LOWER(name)) WHERE is_deleted = FALSE;
+
+UPDATE employees
+SET designation = (designation::json ->> 'name')
+WHERE designation LIKE '{%';
+UPDATE employees
+SET group_type = (group_type::json ->> 'name')
+WHERE group_type LIKE '{%';
 
 DROP TRIGGER IF EXISTS trg_batches_updated_at ON batches;
 CREATE TRIGGER trg_batches_updated_at

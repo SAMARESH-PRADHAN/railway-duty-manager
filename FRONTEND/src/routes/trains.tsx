@@ -14,7 +14,7 @@ import { Pencil, Trash2, RotateCcw, Plus, Power, Download } from "lucide-react";
 import { toast } from "sonner";
 
 
-const CATS = ["Vande Bharat", "Rajdhani", "Shatabdi"];
+// const CATS = ["Vande Bharat", "Rajdhani", "Shatabdi"];
 
 export default function TrainsPage() {
   const { trains, addTrain, updateTrain, toggleTrainStatus, softDeleteTrain, restoreTrain } = useData();
@@ -23,7 +23,7 @@ export default function TrainsPage() {
   const [showArchived, setShowArchived] = useState(false);
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Train | null>(null);
-  const [form, setForm] = useState<Partial<Train>>({ trainNumber: "", trainName: "", category: "Vande Bharat" });
+  const [form, setForm] = useState<Partial<Train>>({ trainNumber: "", trainName: "" });
 
   const hasFilter = q.trim() !== "";
 
@@ -32,7 +32,7 @@ export default function TrainsPage() {
       (!q || t.trainNumber.includes(q) || t.trainName.toLowerCase().includes(q.toLowerCase()))
     ), [trains, q, showArchived]);
 
-  const openAdd = () => { setEditing(null); setForm({ trainNumber: "", trainName: "", category: "Vande Bharat" }); setOpen(true); };
+  const openAdd = () => { setEditing(null); setForm({ trainNumber: "", trainName: ""}); setOpen(true); };
   const openEdit = (t: Train) => { setEditing(t); setForm(t); setOpen(true); };
 
   const save = () => {
@@ -44,7 +44,7 @@ export default function TrainsPage() {
 
   const downloadExcel = () => {
     const rows = filtered.map((t) => ({
-      Number: t.trainNumber, Name: t.trainName, Category: t.category, Status: t.status,
+      Number: t.trainNumber, Name: t.trainName, Status: t.status,
     }));
     exportSheet(rows, `trains_${hasFilter ? "filtered" : "all"}_${new Date().toISOString().slice(0, 10)}.xlsx`, "Trains");
     toast.success("Excel downloaded");
@@ -74,14 +74,14 @@ export default function TrainsPage() {
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="bg-slate-100 text-left text-xs uppercase text-slate-600">
-              <tr><th className="p-3">Number</th><th>Name</th><th>Category</th><th>Status</th><th className="text-right pr-3">Actions</th></tr>
+              <tr><th className="p-3">Number</th><th>Name</th><th>Status</th><th className="text-right pr-3">Actions</th></tr>
             </thead>
             <tbody>
               {filtered.map((t) => (
                 <tr key={t.id} className="border-t hover:bg-slate-50">
                   <td className="p-3 font-semibold">{t.trainNumber}</td>
                   <td>{t.trainName}</td>
-                  <td><Badge variant="outline">{t.category}</Badge></td>
+                  {/* <td><Badge variant="outline">{t.category}</Badge></td> */}
                   <td><Badge className={t.status === "active" ? "bg-emerald-600" : "bg-slate-400"}>{t.status}</Badge></td>
                   <td className="p-2">
                     <div className="flex justify-end gap-1">
@@ -116,12 +116,13 @@ export default function TrainsPage() {
           <div className="space-y-3">
             <div><Label className="text-xs">Train Number *</Label><Input value={form.trainNumber ?? ""} onChange={(e) => setForm({ ...form, trainNumber: e.target.value })} /></div>
             <div><Label className="text-xs">Train Name *</Label><Input value={form.trainName ?? ""} onChange={(e) => setForm({ ...form, trainName: e.target.value })} /></div>
-            <div><Label className="text-xs">Category</Label>
-              <Combobox
+            <div>
+              {/* <Label className="text-xs">Category</Label> */}
+              {/* <Combobox
                 value={form.category as string}
                 onChange={(v) => setForm({ ...form, category: v })}
                 options={CATS.map((c) => ({ value: c, label: c }))}
-              />
+              /> */}
             </div>
           </div>
           <DialogFooter>

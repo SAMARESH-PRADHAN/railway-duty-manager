@@ -32,10 +32,10 @@ const createDefaultDays = (): Batch["days"] =>
   }));
 
 const BatchesPage = () => {
-  const { batches, saveBatch, deleteBatch, refresh, findOrCreateBatch } = useData();
+  const { batches, saveBatch, deleteBatch, refresh, refreshEmployeesSilently, findOrCreateBatch } = useData();
   const confirm = useConfirm();
   const [editingId, setEditingId] = useState<string>();
-
+const [isSaving, setIsSaving] = useState(false);
   const [batchName, setBatchName] = useState("");
   const [showForm, setShowForm] = useState(false);
   const [search, setSearch] = useState("");
@@ -203,38 +203,46 @@ const BatchesPage = () => {
                   )}
                 </div>
                 {days.map((day, index) => (
-                  <Card key={day.dayNumber}>
-                    <CardContent className="pt-5">
-                      <div className="flex justify-between items-center">
-                        <h3 className="font-semibold">Day {day.dayNumber}</h3>
+  <Card key={day.dayNumber}>
+    <CardContent className="pt-5">
+      <div className="flex justify-between items-center">
+        <h3 className="font-semibold">Day {day.dayNumber}</h3>
+        <div className="flex items-center gap-2">
+          <Checkbox
+            checked={day.isRestDay}
+            onCheckedChange={(checked) => {
+              const copy = [...days];
+              copy[index].isRestDay = !!checked;
+              if (checked) {
+                copy[index].slots = [];
+              } else if (copy[index].slots.length === 0) {
+                copy[index].slots = [{ from: "08:00", to: "16:00" }];
+              }
+              setDays(copy);
+            }}
+          />
+          <Label>Rest Day</Label>
 
-                        <div className="flex items-center gap-2">
-                          <Checkbox
-                            checked={day.isRestDay}
-                            onCheckedChange={(checked) => {
-                              const copy = [...days];
-
-                              copy[index].isRestDay = !!checked;
-
-                              if (checked) {
-                                copy[index].slots = [];
-                              } else if (copy[index].slots.length === 0) {
-                                copy[index].slots = [
-                                  {
-                                    from: "08:00",
-
-                                    to: "16:00",
-                                  },
-                                ];
-                              }
-
-                              setDays(copy);
-                            }}
-                          />
-
-                          <Label>Rest Day</Label>
-                        </div>
-                      </div>
+          {/* NEW: Copy to all rows button */}
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              const source = days[index];
+              const copied = days.map((d) => ({
+                ...d,
+                isRestDay: source.isRestDay,
+                slots: source.slots.map((s) => ({ ...s })),
+              }));
+              setDays(copied);
+              toast.success(`Day ${day.dayNumber}'s timing copied to all rows`);
+            }}
+          >
+            Copy to all rows
+          </Button>
+        </div>
+      </div>
                       {!day.isRestDay && (
                         <div className="space-y-3 mt-5">
                           {day.slots.map((slot, slotIndex) => (
@@ -312,6 +320,7 @@ const BatchesPage = () => {
                 ))}
                 <div className="flex justify-end mt-6">
                   <Button
+                  disabled={isSaving}
                     onClick={async () => {
                       const targetId = editingId ?? selectedNewBatchId;
                       if (!targetId) {
@@ -324,8 +333,9 @@ const BatchesPage = () => {
                       }
 
                       try {
+                          setIsSaving(true);
                         await saveBatch({ id: targetId, name: batchName, days });
-                        await refresh(); // pulls updated employee.presentBatch after any rename
+                         await refreshEmployeesSilently(); // pulls updated employee.presentBatch after any rename
                         toast.success(
                           editingId
                             ? "Batch updated successfully!"
@@ -338,10 +348,12 @@ const BatchesPage = () => {
                         setShowForm(false);
                       } catch (err) {
                         toast.error(err instanceof Error ? err.message : "Failed to save batch");
-                      }
+                      } finally {
+      setIsSaving(false);
+    }
                     }}
                   >
-                    {editingId ? "Update Batch" : "Save Roster Duty"}
+                    {isSaving ? "Saving..." : editingId ? "Update Batch" : "Save Roster Duty"}
                   </Button>
                 </div>
               </div>
