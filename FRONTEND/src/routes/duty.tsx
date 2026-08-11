@@ -822,11 +822,13 @@ export default function DutyPage() {
               <StatBox label="Total Actual" value={fmtHours(totals.totalActual)} />
               <div className="rounded-lg border p-3 bg-slate-50 space-y-2">
   <div>
-    <div className="text-xs text-slate-500">Statutory Basis</div>
-    <div className="text-xl font-bold text-slate-800">
-      {isStatutory ? "104.00" : "Non-Statutory"}
-    </div>
+  <div className="text-xs text-slate-500">
+    {isStatutory ? "Statutory Basis" : "Statutory Basis"}
   </div>
+  <div className="text-xl font-bold text-slate-800">
+    {fmtHours(isStatutory ? totals.totalRost + 8 : totals.totalRost)}
+  </div>
+</div>
   <div className="relative">
     <select
       className="w-full h-8 appearance-none bg-white border rounded-md px-2 pr-6 text-xs text-slate-700 focus:outline-none focus:ring-1 focus:ring-ring cursor-pointer"
