@@ -38,7 +38,7 @@ import {
   ArrowLeft,
   ArrowRight,
   ChevronLeft,
-   ChevronDown,
+  ChevronDown,
   FileText,
   BedDouble,
   Undo2,
@@ -820,18 +820,23 @@ export default function DutyPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               <StatBox label="Total Rostered" value={fmtHours(totals.totalRost)} />
               <StatBox label="Total Actual" value={fmtHours(totals.totalActual)} />
-             <div className="rounded-lg border p-3 bg-slate-50">
-  <div className="text-xs text-slate-500">Statutory Basis</div>
-  <div className="relative mt-0.5 -ml-1 w-[calc(100%+0.5rem)]">
+              <div className="rounded-lg border p-3 bg-slate-50 space-y-2">
+  <div>
+    <div className="text-xs text-slate-500">Statutory Basis</div>
+    <div className="text-xl font-bold text-slate-800">
+      {isStatutory ? "104.00" : "Non-Statutory"}
+    </div>
+  </div>
+  <div className="relative">
     <select
-      className="w-full appearance-none bg-transparent pr-6 text-xl font-bold text-slate-800 border-0 focus:outline-none focus:ring-0 cursor-pointer"
+      className="w-full h-8 appearance-none bg-white border rounded-md px-2 pr-6 text-xs text-slate-700 focus:outline-none focus:ring-1 focus:ring-ring cursor-pointer"
       value={isStatutory ? "statutory" : "non-statutory"}
       onChange={(e) => setIsStatutory(e.target.value === "statutory")}
     >
       <option value="statutory">Statutory</option>
       <option value="non-statutory">Non-Statutory</option>
     </select>
-    <ChevronDown className="pointer-events-none absolute right-1 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+    <ChevronDown className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
   </div>
 </div>
               <StatBox label="OT Payable" value={fmtHours(totals.ot)} highlight />
