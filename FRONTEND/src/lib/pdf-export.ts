@@ -31,7 +31,7 @@ const displayTotalActual = sheet.isStatutory
 // OT payable already comes from the correctly recalculated DutySheet.
 const displayOtPayable = sheet.otPayable;
 
-  const basisLabel = sheet.isStatutory ? "Statutory Hours" : "Rostered Hours (Non-Statutory)";
+  const basisLabel = sheet.isStatutory ? "Statutory Hours" : "Non-Statutory";
 
   // Title
   doc.setFont("helvetica", "bold");
