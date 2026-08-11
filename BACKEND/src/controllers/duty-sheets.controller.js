@@ -48,7 +48,7 @@ async function saveDutySheet(req, res) {
     }
   }
 
-  const recalced = recalcSheet({ days: b.days, totalRosteredHoursFallback: b.totalRosteredHours });
+  const recalced = recalcSheet({ days: b.days, totalRosteredHoursFallback: b.totalRosteredHours, isStatutory: b.isStatutory !== false });
   const id = b.id || randomUUID();
   const trainIds = b.trainIds ?? [];
   const manualTrainNote = b.manualTrainNote?.trim() || null;
@@ -69,6 +69,7 @@ async function saveDutySheet(req, res) {
         total_actual_hours = ${recalced.totalActualHours},
         total_rostered_hours = ${recalced.totalRosteredHours},
         statutory_hours = ${recalced.statutoryHours},
+        is_statutory = ${recalced.isStatutory},
         deduction_hours = ${recalced.deductionHours},
         ot_payable = ${recalced.otPayable},
         is_draft = ${!!b.isDraft}
@@ -78,12 +79,12 @@ async function saveDutySheet(req, res) {
     [row] = await sql`
       INSERT INTO duty_sheets (
         id, employee_id, train_ids, manual_train_note, period_start_date, period_end_date,
-        days, total_actual_hours, total_rostered_hours, statutory_hours, deduction_hours,
-        ot_payable, is_draft
+        days, total_actual_hours, total_rostered_hours, statutory_hours, is_statutory,
+        ot_payable, is_draft, deduction_hours
       ) VALUES (
         ${id}, ${b.employeeId}, ${trainIds}::uuid[], ${manualTrainNote}, ${b.periodStartDate}, ${b.periodEndDate},
         ${daysJson}::jsonb, ${recalced.totalActualHours}, ${recalced.totalRosteredHours},
-        ${recalced.statutoryHours}, ${recalced.deductionHours}, ${recalced.otPayable}, ${!!b.isDraft}
+        ${recalced.statutoryHours}, ${recalced.isStatutory}, ${recalced.otPayable}, ${!!b.isDraft}, ${recalced.deductionHours}
       )
       RETURNING *`;
   }

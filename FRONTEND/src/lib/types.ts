@@ -87,6 +87,7 @@ export interface DutySheet {
   totalActualHours: number;
   totalRosteredHours: number;
   statutoryHours: number;
+    isStatutory: boolean;   // NEW — true = use fixed 104h statutory rule
   /** Legacy: kept for old records; new sheets rely on per-day `leave`. */
   deductionType?: DeductionType;
   deductionHours: number;
