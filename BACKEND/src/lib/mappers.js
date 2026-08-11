@@ -51,6 +51,7 @@ function mapDutySheet(row) {
     totalActualHours: Number(row.total_actual_hours),
     totalRosteredHours: Number(row.total_rostered_hours),
     statutoryHours: Number(row.statutory_hours),
+    isStatutory: row.is_statutory,
     deductionType: row.deduction_type ?? undefined,
     deductionHours: Number(row.deduction_hours),
     otPayable: Number(row.ot_payable),

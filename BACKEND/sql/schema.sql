@@ -182,6 +182,7 @@ ALTER TABLE batches ADD COLUMN IF NOT EXISTS roster_configured BOOLEAN NOT NULL 
 CREATE UNIQUE INDEX IF NOT EXISTS idx_employees_pf_number_unique ON employees (pf_number);
 CREATE UNIQUE INDEX IF NOT EXISTS idx_employees_token_no_unique ON employees (token_no);
 ALTER TABLE trains DROP COLUMN IF EXISTS category;
+ALTER TABLE duty_sheets ADD COLUMN IF NOT EXISTS is_statutory BOOLEAN NOT NULL DEFAULT TRUE;
 CREATE UNIQUE INDEX IF NOT EXISTS idx_designations_name_lower
   ON designations (LOWER(name)) WHERE is_deleted = FALSE;
 

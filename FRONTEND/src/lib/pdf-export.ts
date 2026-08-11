@@ -11,9 +11,27 @@ function drawOtSlip(doc: jsPDF, sheet: DutySheet, emp: Employee, trains: Train[]
   const W = doc.internal.pageSize.getWidth();
   // Display-only calculation: flat 8-hour deduction, then subtract rostered hours
   const FLAT_DEDUCTION = 8;
-  const rawActualSum = sheet.days.reduce((acc, d) => acc + (d.actualHours || 0), 0);
-  const displayTotalActual = Math.round((rawActualSum - FLAT_DEDUCTION) * 100) / 100;
-  const displayOtPayable = Math.round((displayTotalActual - sheet.totalRosteredHours) * 100) / 100;
+  // const rawActualSum = sheet.days.reduce((acc, d) => acc + (d.actualHours || 0), 0);
+  // const displayTotalActual = Math.round((rawActualSum - FLAT_DEDUCTION) * 100) / 100;
+  // const displayOtPayable = Math.round((displayTotalActual - sheet.totalRosteredHours) * 100) / 100;
+ const rawActualSum = sheet.days.reduce(
+  (acc, d) => acc + (d.actualHours || 0),
+  0
+);
+
+const displayRawActual = Math.round(rawActualSum * 100) / 100;
+
+// For statutory sheets, the PDF displays the 8-hour deduction
+// separately, so the total shown after "-08.00" must be Actual - 8.
+// For non-statutory sheets, there is no 8-hour deduction.
+const displayTotalActual = sheet.isStatutory
+  ? Math.round((displayRawActual - 8) * 100) / 100
+  : displayRawActual;
+
+// OT payable already comes from the correctly recalculated DutySheet.
+const displayOtPayable = sheet.otPayable;
+
+  const basisLabel = sheet.isStatutory ? "Statutory Hours" : "Rostered Hours (Non-Statutory)";
 
   // Title
   doc.setFont("helvetica", "bold");
@@ -28,16 +46,17 @@ function drawOtSlip(doc: jsPDF, sheet: DutySheet, emp: Employee, trains: Train[]
   const rightLabels = [
     "Total Hours worked",
     "Actual Rostered Hours",
-    "Statutory Hours",
+    // "Statutory Hours",
+    basisLabel,
     // "Extra Hours worked",
     "OT Payable",
     "Period from",
     "Period to",
   ];
   const rightValues = [
-    fmtHours(displayTotalActual), // was sheet.totalActualHours
+    fmtHours(displayRawActual), // was sheet.totalActualHours
     fmtHours(sheet.totalRosteredHours),
-    fmtHours(sheet.statutoryHours),
+    sheet.isStatutory ? fmtHours(sheet.statutoryHours) : fmtHours(sheet.totalRosteredHours),
     // fmtHours(displayTotalActual - sheet.totalRosteredHours), // was sheet.totalActualHours - sheet.totalRosteredHours
     fmtHours(displayOtPayable), // was sheet.otPayable
     fmtDate(sheet.periodStartDate),
@@ -150,16 +169,18 @@ function drawOtSlip(doc: jsPDF, sheet: DutySheet, emp: Employee, trains: Train[]
   });
 
  const foot: any[] = [
-    ["", "", "", "", "", { content: fmtHours(rawActualSum), styles: { halign: "right" } }, "", ""],
+    ["", "", "", "", "", { content: fmtHours(displayRawActual), styles: { halign: "right" } }, "", ""],
   ];
-  foot.push(["", "", "", "", "", { content: `-${fmtHours(FLAT_DEDUCTION)}`, styles: { halign: "right" } }, "", ""]); // always show -08.00
+  if (sheet.isStatutory) {
+  foot.push(["", "", "", "", "", { content: `-08.00`, styles: { halign: "right" } }, "", ""]);
+}
+  // foot.push(["", "", "", "", "", { content: `-${fmtHours(FLAT_DEDUCTION)}`, styles: { halign: "right" } }, "", ""]); // always show -08.00
   foot.push([
     { content: "TOTAL", colSpan: 3, styles: { halign: "center", fontStyle: "bold" } },
     { content: fmtHours(sheet.totalRosteredHours), styles: { fontStyle: "bold", halign: "right" } },
     { content: "OT Payable", styles: { fontStyle: "bold", halign: "center" } },
-    { content: fmtHours(displayTotalActual), styles: { fontStyle: "bold", halign: "right" } }, // was sheet.totalActualHours
-    { content: fmtHours(displayOtPayable), styles: { fontStyle: "bold", halign: "right" } }, // was sheet.otPayable
-    "",
+    { content: fmtHours(displayTotalActual), styles: { fontStyle: "bold", halign: "right" } }, 
+    { content: fmtHours(displayOtPayable), styles: { fontStyle: "bold", halign: "right" } }, 
   ]);
 
   autoTable(doc, {

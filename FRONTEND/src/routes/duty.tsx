@@ -38,6 +38,7 @@ import {
   ArrowLeft,
   ArrowRight,
   ChevronLeft,
+   ChevronDown,
   FileText,
   BedDouble,
   Undo2,
@@ -74,7 +75,7 @@ export default function DutyPage() {
   const [sheetId] = useState<string>(existing?.id ?? uuid());
   const [dirty, setDirty] = useState(false);
   const initialLoad = useRef(true);
-
+  const [isStatutory, setIsStatutory] = useState<boolean>(existing?.isStatutory ?? true);
   const [sundayModalOpen, setSundayModalOpen] = useState(false);
   const [pendingStart, setPendingStart] = useState<string>("");
 
@@ -206,11 +207,22 @@ export default function DutyPage() {
 
   const totals = useMemo(() => {
     const totalActual = Math.round(days.reduce((a, d) => a + netActualOf(d), 0) * 100) / 100;
+
     const totalRost = Math.round(days.reduce((a, d) => a + d.rosteredHours, 0) * 100) / 100;
+
     const ded = totalDeduction(days);
-    const ot = Math.round((totalActual - STATUTORY_HOURS) * 100) / 100;
-    return { totalActual, totalRost, ded, ot };
-  }, [days]);
+
+    const ot = isStatutory
+      ? Math.round((totalActual - (totalRost + 8)) * 100) / 100
+      : Math.round((totalActual - totalRost) * 100) / 100;
+
+    return {
+      totalActual,
+      totalRost,
+      ded,
+      ot,
+    };
+  }, [days, isStatutory]);
 
   const bankedRestDays = useMemo(
     () =>
@@ -294,13 +306,7 @@ export default function DutyPage() {
 
   const handleStartDateChange = (iso: string) => {
     if (!iso) return;
-    const isSunday = format(parseISO(iso), "EEEE") === "Sunday";
-    if (isSunday) {
-      applyStartDate(iso);
-    } else {
-      setPendingStart(iso);
-      setSundayModalOpen(true);
-    }
+    applyStartDate(iso);
   };
 
   const save = async (asDraft: boolean) => {
@@ -320,6 +326,7 @@ export default function DutyPage() {
       totalActualHours: totals.totalActual,
       totalRosteredHours: totals.totalRost,
       statutoryHours: STATUTORY_HOURS,
+      isStatutory,
       deductionHours: totals.ded,
       otPayable: totals.ot,
       isDraft: asDraft,
@@ -480,7 +487,7 @@ export default function DutyPage() {
                       <div className="font-semibold text-sm">
                         {t.trainNumber} — {t.trainName}
                       </div>
-                      <div className="text-xs text-slate-500">{t.category}</div>
+                      {/* <div className="text-xs text-slate-500">{t.category}</div> */}
                     </div>
                   </label>
                 );
@@ -558,7 +565,15 @@ export default function DutyPage() {
             </Button>
             <Button
               disabled={!startDate}
-              onClick={() => setStep(4)}
+              onClick={() => {
+                const isSunday = format(parseISO(startDate), "EEEE") === "Sunday";
+                if (!isSunday) {
+                  setPendingStart(startDate);
+                  setSundayModalOpen(true);
+                } else {
+                  setStep(4);
+                }
+              }}
               className="bg-[#0b2545] hover:bg-[#0b2545]/90"
             >
               Next: 14-Day Grid <ArrowRight className="h-4 w-4 ml-1" />
@@ -805,7 +820,20 @@ export default function DutyPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               <StatBox label="Total Rostered" value={fmtHours(totals.totalRost)} />
               <StatBox label="Total Actual" value={fmtHours(totals.totalActual)} />
-              <StatBox label="Statutory (fixed)" value="104.00" />
+             <div className="rounded-lg border p-3 bg-slate-50">
+  <div className="text-xs text-slate-500">Statutory Basis</div>
+  <div className="relative mt-0.5 -ml-1 w-[calc(100%+0.5rem)]">
+    <select
+      className="w-full appearance-none bg-transparent pr-6 text-xl font-bold text-slate-800 border-0 focus:outline-none focus:ring-0 cursor-pointer"
+      value={isStatutory ? "statutory" : "non-statutory"}
+      onChange={(e) => setIsStatutory(e.target.value === "statutory")}
+    >
+      <option value="statutory">Statutory</option>
+      <option value="non-statutory">Non-Statutory</option>
+    </select>
+    <ChevronDown className="pointer-events-none absolute right-1 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+  </div>
+</div>
               <StatBox label="OT Payable" value={fmtHours(totals.ot)} highlight />
             </div>
 
@@ -849,9 +877,9 @@ export default function DutyPage() {
             <Button
               className="bg-[#0b2545] hover:bg-[#0b2545]/90"
               onClick={() => {
-                applyStartDate(pendingStart);
                 setSundayModalOpen(false);
                 setPendingStart("");
+                setStep(4);
               }}
             >
               Confirm &amp; Continue

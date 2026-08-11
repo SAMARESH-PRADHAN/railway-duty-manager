@@ -1,5 +1,5 @@
 const { sql } = require("../lib/db");
-const { mapEmployee, mapTrain, mapDutySheet, mapBatch } = require("../lib/mappers");
+const { mapEmployee, mapTrain, mapDutySheet, mapBatch, mapDesignation, mapGroupType } = require("../lib/mappers");
 
 async function exportBackup(req, res) {
   const { from, to } = req.query;
@@ -8,6 +8,8 @@ async function exportBackup(req, res) {
   const trains = await sql`SELECT * FROM trains ORDER BY created_at ASC`;
   const batches = await sql`SELECT * FROM batches ORDER BY name ASC`;
   const batchDays = await sql`SELECT * FROM batch_roster_days ORDER BY day_number ASC`;
+  const designations = await sql`SELECT * FROM designations ORDER BY name ASC`;
+  const groupTypes = await sql`SELECT * FROM group_types ORDER BY name ASC`;
 
   // Only duty sheets are date-filterable; employees/trains/batches are master
   // data and always come along in full so restore is self-consistent.
@@ -28,6 +30,8 @@ async function exportBackup(req, res) {
     trains: trains.map(mapTrain),
     batches: batches.map((b) => mapBatch(b, daysByBatch[b.id] || [])),
     dutySheets: dutySheets.map(mapDutySheet),
+    designations: designations.map(mapDesignation),
+    groupTypes: groupTypes.map(mapGroupType),
   });
 }
 
@@ -36,13 +40,28 @@ async function exportBackup(req, res) {
  * original ids (duty sheets / employees reference batch/train ids by id).
  */
 async function restoreBackup(req, res) {
-  const { employees = [], trains = [], batches = [], dutySheets = [] } = req.body;
+  const { employees = [], trains = [], batches = [], dutySheets = [], designations = [],
+    groupTypes = [] } = req.body;
 
   await sql`DELETE FROM duty_sheets`;
   await sql`DELETE FROM batch_roster_days`;
   await sql`DELETE FROM batches`;
   await sql`DELETE FROM trains`;
   await sql`DELETE FROM employees`;
+   await sql`DELETE FROM designations`;
+  await sql`DELETE FROM group_types`;
+
+  for (const d of designations) {
+    await sql`
+      INSERT INTO designations (id, name, is_deleted)
+      VALUES (${d.id}, ${d.name}, ${!!d.isDeleted})`;
+  }
+
+  for (const g of groupTypes) {
+    await sql`
+      INSERT INTO group_types (id, name, is_deleted)
+      VALUES (${g.id}, ${g.name}, ${!!g.isDeleted})`;
+  }
 
   for (const e of employees) {
     await sql`
@@ -58,8 +77,8 @@ async function restoreBackup(req, res) {
 
   for (const t of trains) {
     await sql`
-      INSERT INTO trains (id, train_number, train_name, category, status, is_deleted)
-      VALUES (${t.id}, ${t.trainNumber}, ${t.trainName}, ${t.category}, ${t.status}, ${!!t.isDeleted})`;
+      INSERT INTO trains (id, train_number, train_name, status, is_deleted)
+      VALUES (${t.id}, ${t.trainNumber}, ${t.trainName}, ${t.status}, ${!!t.isDeleted})`;
   }
   for (const t of trains) {
     if (t.pairedTrainId) {
@@ -97,6 +116,8 @@ async function restoreBackup(req, res) {
     trains: trains.length,
     batches: batches.length,
     dutySheets: dutySheets.length,
+    designations: designations.length,
+    groupTypes: groupTypes.length,
   });
 }
 

@@ -155,10 +155,14 @@ export function recalcSheet(sheet: DutySheet): DutySheet {
   const totalActual = Math.round(days.reduce((a, d) => a + d.actualHours, 0) * 100) / 100;
   const totalRostered = Math.round(days.reduce((a, d) => a + d.rosteredHours, 0) * 100) / 100;
   const ded = totalDeduction(days);
-  const ot = Math.round((totalActual - STATUTORY_HOURS) * 100) / 100;
+  const isStatutory = sheet.isStatutory ?? true;
+    const ot = isStatutory
+    ? Math.round((totalActual - STATUTORY_HOURS) * 100) / 100
+    : Math.round((totalActual - (totalRostered || sheet.totalRosteredHours)) * 100) / 100;
   return {
     ...sheet,
     days,
+    isStatutory,
     totalActualHours: totalActual,
     totalRosteredHours: totalRostered || sheet.totalRosteredHours || 96,
     statutoryHours: STATUTORY_HOURS,

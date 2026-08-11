@@ -20,22 +20,50 @@ function totalDeduction(days) {
  * deduction, and OT payable. The backend always recalculates on save; it
  * never trusts client-sent totals.
  */
-function recalcSheet({ days, totalRosteredHoursFallback }) {
+function recalcSheet({ days, totalRosteredHoursFallback, isStatutory = true }) {
   const recalcedDays = days.map((d) => ({
     ...d,
     extraHours: Math.round((d.actualHours - d.rosteredHours) * 100) / 100,
   }));
 
-  const totalActual = Math.round(recalcedDays.reduce((a, d) => a + d.actualHours, 0) * 100) / 100;
-  const totalRostered = Math.round(recalcedDays.reduce((a, d) => a + d.rosteredHours, 0) * 100) / 100;
+ 
+    const totalActual = Math.round(
+    recalcedDays.reduce((a, d) => a + Number(d.actualHours || 0), 0) * 100
+  ) / 100;
+
+  const totalRostered = Math.round(
+    recalcedDays.reduce((a, d) => a + Number(d.rosteredHours || 0), 0) * 100
+  ) / 100;
+
   const ded = totalDeduction(recalcedDays);
-  const ot = Math.round((totalActual - STATUTORY_HOURS) * 100) / 100;
+
+  const rosteredForOt =
+    totalRostered || Number(totalRosteredHoursFallback) || 96;
+
+  let ot;
+
+  if (isStatutory) {
+    // Statutory OT:
+    // Total Actual - (Total Rostered + 8)
+    ot =
+      Math.round(
+        (totalActual - (rosteredForOt + 8)) * 100
+      ) / 100;
+  } else {
+    // Non-Statutory OT:
+    // Total Actual - Total Rostered
+    ot =
+      Math.round(
+        (totalActual - rosteredForOt) * 100
+      ) / 100;
+  }
 
   return {
     days: recalcedDays,
     totalActualHours: totalActual,
     totalRosteredHours: totalRostered || totalRosteredHoursFallback || 96,
     statutoryHours: STATUTORY_HOURS,
+    isStatutory: !!isStatutory,
     deductionHours: ded,
     otPayable: ot,
   };

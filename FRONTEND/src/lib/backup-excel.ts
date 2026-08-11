@@ -1,12 +1,14 @@
 import * as XLSX from "xlsx";
 
 export function buildBackupWorkbook(data: {
-  employees: any[]; trains: any[]; batches: any[]; dutySheets: any[];
+  employees: any[]; trains: any[]; batches: any[]; dutySheets: any[];  designations: any[]; groupTypes: any[];
 }) {
   const wb = XLSX.utils.book_new();
 
   XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(data.employees), "Employees");
   XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(data.trains), "Trains");
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(data.designations), "Designations");
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(data.groupTypes), "GroupTypes");
 
   XLSX.utils.book_append_sheet(
     wb,
@@ -39,6 +41,8 @@ export function parseBackupWorkbook(buf: ArrayBuffer) {
   return {
     employees: sheetJson("Employees"),
     trains: sheetJson("Trains"),
+    designations: sheetJson("Designations"),
+    groupTypes: sheetJson("GroupTypes"),
     batches: sheetJson("Batches").map((b) => ({ ...b, days: b.days ? JSON.parse(b.days) : [] })),
     dutySheets: sheetJson("DutySheets").map((s) => ({
       ...s,
