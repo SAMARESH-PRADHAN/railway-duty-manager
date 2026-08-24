@@ -158,7 +158,7 @@ export default function EmployeesPage() {
       // Search by name, PF number, or token number
       if (
         q &&
-        ![e.name, e.pfNumber, e.tokenNo].some((s) => s.toLowerCase().includes(q.toLowerCase()))
+        ![e.name, e.pfNumber, e.tokenNo].some((s) => (s ?? "").toLowerCase().includes(q.toLowerCase()))
       )
         return false;
 
@@ -201,8 +201,8 @@ export default function EmployeesPage() {
    */
   const save = async () => {
     // Validate required fields
-    if (!form.name || !form.pfNumber || !form.tokenNo || !form.designation || !form.groupType) {
-      toast.error("Name, PF Number, Token No, Designation and Group Type are required");
+    if (!form.name || !form.pfNumber ||  !form.designation || !form.groupType) {
+      toast.error("Name, PF Number,  Designation and Group Type are required");
       return;
     }
 
@@ -382,7 +382,7 @@ export default function EmployeesPage() {
         const tokenNo = getValue(r, ["Token No", "Token No *", "Token", "Token Number"]);
 
         // Skip if required fields are missing
-        if (!name || !pfNumber || !tokenNo) {
+        if (!name || !pfNumber ) {
           skipped++;
           continue;
         }
@@ -781,7 +781,7 @@ export default function EmployeesPage() {
                 onChange={(e) => setForm({ ...form, pfNumber: e.target.value })}
               />
             </Field>
-            <Field label="Token No *">
+            <Field label="Token No ">
               <Input
                 value={form.tokenNo ?? ""}
                 onChange={(e) => setForm({ ...form, tokenNo: e.target.value })}

@@ -9,7 +9,7 @@ CREATE TABLE IF NOT EXISTS employees (
   sl_no           INTEGER NOT NULL UNIQUE,
   name            TEXT NOT NULL,
   pf_number       TEXT NOT NULL,
-  token_no        TEXT NOT NULL,
+  token_no        TEXT,                    -- optional: not every employee has a token no
   designation     TEXT NOT NULL,
   present_batch   TEXT NOT NULL,
   group_type      TEXT NOT NULL,           -- 'A' | 'B' | 'C' | 'D' | 'E' | 'F'
@@ -200,3 +200,8 @@ DROP TRIGGER IF EXISTS trg_batches_updated_at ON batches;
 CREATE TRIGGER trg_batches_updated_at
   BEFORE UPDATE ON batches
   FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+
+-- Token No is now optional — some employees don't have one. Existing DBs
+-- (created before this change, with token_no NOT NULL) need this to drop
+-- the constraint. Safe to re-run.
+ALTER TABLE employees ALTER COLUMN token_no DROP NOT NULL;

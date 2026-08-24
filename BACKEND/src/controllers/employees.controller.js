@@ -11,17 +11,21 @@ async function listEmployees(req, res) {
 
 async function createEmployee(req, res) {
   const b = req.body;
-  if (!b.name || !b.pfNumber || !b.tokenNo) {
-    return res.status(400).json({ error: "name, pfNumber, and tokenNo are required" });
+  if (!b.name || !b.pfNumber) {
+    return res.status(400).json({ error: "name and pfNumber are required" });
   }
 
   const [dupPf] = await sql`SELECT id FROM employees WHERE pf_number = ${b.pfNumber}`;
   if (dupPf) {
     return res.status(409).json({ error: `PF Number "${b.pfNumber}" already exists` });
   }
-  const [dupToken] = await sql`SELECT id FROM employees WHERE token_no = ${b.tokenNo}`;
-  if (dupToken) {
-    return res.status(409).json({ error: `Token No "${b.tokenNo}" already exists` });
+
+  // tokenNo is optional — only check for duplicates if one was actually provided
+  if (b.tokenNo) {
+    const [dupToken] = await sql`SELECT id FROM employees WHERE token_no = ${b.tokenNo}`;
+    if (dupToken) {
+      return res.status(409).json({ error: `Token No "${b.tokenNo}" already exists` });
+    }
   }
 
   const [{ next_sl_no }] = await sql`SELECT COALESCE(MAX(sl_no), 0) + 1 AS next_sl_no FROM employees`;
@@ -31,7 +35,7 @@ async function createEmployee(req, res) {
       sl_no, name, pf_number, token_no, designation, present_batch,
       group_type, address, phone, date_of_birth, date_of_joining, status
     ) VALUES (
-      ${next_sl_no}, ${b.name}, ${b.pfNumber}, ${b.tokenNo},
+      ${next_sl_no}, ${b.name}, ${b.pfNumber}, ${b.tokenNo || null},
       ${b.designation ?? "Tech-I"}, ${b.presentBatch ?? "A BATCH"}, ${b.groupType ?? "A"},
       ${b.address ?? ""}, ${b.phone ?? ""}, ${b.dateOfBirth || null}, ${b.dateOfJoining || null},
       ${b.status ?? "active"}
@@ -48,13 +52,16 @@ async function updateEmployee(req, res) {
   if (!existing) return res.status(404).json({ error: "Employee not found" });
 
   const newPf = b.pfNumber ?? existing.pf_number;
-  const newToken = b.tokenNo ?? existing.token_no;
+  // Allow explicitly clearing tokenNo (empty string / null) without falling back to existing value
+  const newToken = b.tokenNo !== undefined ? (b.tokenNo || null) : existing.token_no;
 
   if (newPf !== existing.pf_number) {
     const [dupPf] = await sql`SELECT id FROM employees WHERE pf_number = ${newPf} AND id != ${id}`;
     if (dupPf) return res.status(409).json({ error: `PF Number "${newPf}" already exists` });
   }
-  if (newToken !== existing.token_no) {
+
+  // Only dedupe-check when there's an actual non-empty token being set/changed
+  if (newToken && newToken !== existing.token_no) {
     const [dupToken] = await sql`SELECT id FROM employees WHERE token_no = ${newToken} AND id != ${id}`;
     if (dupToken) return res.status(409).json({ error: `Token No "${newToken}" already exists` });
   }
