@@ -48,7 +48,19 @@ const [isSaving, setIsSaving] = useState(false);
   // Batches that exist (e.g. from employee import/form) but have no roster yet.
   const unconfiguredBatches = useMemo(() => batches.filter((b) => !b.rosterConfigured), [batches]);
   const [days, setDays] = useState(createDefaultDays());
-
+// Copies isRestDay + slots from sourceDayNumber into the row at targetIndex.
+const copyDayFrom = (targetIndex: number, sourceDayNumber: number) => {
+  const source = days.find((d) => d.dayNumber === sourceDayNumber);
+  if (!source) return;
+  const copy = [...days];
+  copy[targetIndex] = {
+    ...copy[targetIndex],
+    isRestDay: source.isRestDay,
+    slots: source.slots.map((s) => ({ ...s })),
+  };
+  setDays(copy);
+  toast.success(`Copied Day ${sourceDayNumber}'s timing into Day ${copy[targetIndex].dayNumber}`);
+};
   return (
     <div className="p-6">
       <Card>
@@ -205,8 +217,28 @@ const [isSaving, setIsSaving] = useState(false);
                 {days.map((day, index) => (
   <Card key={day.dayNumber}>
     <CardContent className="pt-5">
-      <div className="flex justify-between items-center">
-        <h3 className="font-semibold">Day {day.dayNumber}</h3>
+            <div className="flex justify-between items-center">
+        <div className="flex items-center gap-2">
+          <h3 className="font-semibold">Day {day.dayNumber}</h3>
+          <select
+            className="h-7 text-[11px] border rounded px-1 bg-white"
+            value=""
+            onChange={(e) => {
+              const val = e.target.value;
+              if (val) copyDayFrom(index, Number(val));
+              e.target.value = "";
+            }}
+          >
+            <option value="">Copy from…</option>
+            {days
+              .filter((d) => d.dayNumber !== day.dayNumber)
+              .map((d) => (
+                <option key={d.dayNumber} value={d.dayNumber}>
+                  Day {d.dayNumber}
+                </option>
+              ))}
+          </select>
+        </div>
         <div className="flex items-center gap-2">
           <Checkbox
             checked={day.isRestDay}

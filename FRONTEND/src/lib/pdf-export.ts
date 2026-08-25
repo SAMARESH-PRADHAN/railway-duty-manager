@@ -149,12 +149,21 @@ const displayOtPayable = sheet.otPayable;
       actHours = fmtHours(d.actualHours);
     }
 
-    const extraDisplay =
-      d.extraHours < 0
-        ? `(-${fmtHours(Math.abs(d.extraHours))})`
-        : d.extraHours > 0
-          ? fmtHours(d.extraHours)
-          : "";
+   const netActual = Math.max(0, Math.round(d.actualHours * 100) / 100);
+
+let extraDisplay: string;
+if (d.leave === "CR") {
+  extraDisplay = `${fmtHours(netActual)}\n(-08.00)`;
+} else if (d.leave && d.leave !== "None") {
+  extraDisplay = `${fmtHours(d.extraHours)}\n(+07.00)`;
+} else {
+  extraDisplay =
+    d.extraHours < 0
+      ? `(-${fmtHours(Math.abs(d.extraHours))})`
+      : d.extraHours > 0
+        ? fmtHours(d.extraHours)
+        : "";
+}
 
     return [
       d.dayName.slice(0, 3),

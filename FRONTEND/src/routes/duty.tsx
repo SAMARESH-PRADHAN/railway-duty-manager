@@ -235,6 +235,41 @@ export default function DutyPage() {
     [days],
   );
 
+    // ============================================================
+  // SAVE DUTY SHEET VALIDATION
+  // Employee must have at least 2 qualifying OFF days:
+  //   2 Rest
+  //   1 Rest + 1 CR
+  //   2 CR
+  //
+  // Each day can count only once.
+  // ============================================================
+
+  const qualifyingOffDays = useMemo(() => {
+    return days.filter(
+      (d) => d.actualIsRest === true || d.leave === "CR"
+    );
+  }, [days]);
+
+  const qualifyingOffDayCount = qualifyingOffDays.length;
+
+  const canSaveDutySheet = qualifyingOffDayCount >= 2;
+
+  const saveDutySheetValidationMessage = useMemo(() => {
+    if (canSaveDutySheet) return "";
+
+    const restCount = days.filter((d) => d.actualIsRest === true).length;
+    const crCount = days.filter(
+      (d) => !d.actualIsRest && d.leave === "CR"
+    ).length;
+
+    return (
+      `${emp?.name ?? "Employee"} must have 2 Rest/CR days before the duty sheet can be saved. ` +
+      `Required: 2 Rest, or 1 Rest + 1 CR, or 2 CR. ` +
+      `Current: ${restCount} Rest + ${crCount} CR = ${restCount + crCount}.`
+    );
+  }, [days, canSaveDutySheet, emp?.name]);
+
   const updateDay = (idx: number, patch: Partial<DutyDay>) => {
     setDays((prev) => {
       const next = [...prev];
@@ -311,10 +346,22 @@ export default function DutyPage() {
 
   const save = async (asDraft: boolean) => {
     if (!emp) return toast.error("Select an employee");
-    if (!asDraft && trainIds.length === 0 && !manualTrainNote.trim())
-      return toast.error("Select at least one train or enter an emergency-duty note");
-    if (!startDate) return toast.error("Pick a start date");
-    if (!asDraft && overlaps) return toast.error("Overlaps with an existing duty sheet");
+    // Drafts are allowed even when the employee does not have
+  // the required 2 Rest/CR days.
+  if (!asDraft && !canSaveDutySheet) {
+    toast.warning(saveDutySheetValidationMessage, {
+      duration: 5000,
+    });
+    return;
+  }
+
+  if (!asDraft && trainIds.length === 0 && !manualTrainNote.trim())
+    return toast.error("Select at least one train or enter an emergency-duty note");
+
+  if (!startDate) return toast.error("Pick a start date");
+
+  if (!asDraft && overlaps)
+    return toast.error("Overlaps with an existing duty sheet");
     const sheet: DutySheet = {
       id: sheetId,
       employeeId,
@@ -333,7 +380,7 @@ export default function DutyPage() {
       createdAt: existing?.createdAt ?? new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
-    saveDutySheet(sheet);
+     await saveDutySheet(sheet);
     setDirty(false);
     toast.success(asDraft ? "Saved as draft" : "Duty sheet saved");
     // Small tick so blocker sees dirty=false
@@ -747,11 +794,23 @@ export default function DutyPage() {
                             <div className="text-[10px] text-amber-700">High</div>
                           )}
                         </td>
-                        <td
-                          className={`p-2 border align-top font-semibold ${d.extraHours < 0 ? "text-rose-600" : "text-emerald-700"}`}
-                        >
-                          {fmtHours(d.extraHours)}
-                        </td>
+                      <td
+  className={`p-2 border align-top font-semibold ${d.extraHours < 0 ? "text-rose-600" : "text-emerald-700"}`}
+>
+  {d.leave === "CR" ? (
+    <div className="flex flex-col leading-tight">
+      <span>{fmtHours(netActualOf(d))}</span>
+      <span className="text-[10px] font-normal text-slate-500">(-08.00)</span>
+    </div>
+  ) : d.leave && d.leave !== "None" ? (
+    <div className="flex flex-col leading-tight">
+      <span>{fmtHours(d.extraHours)}</span>
+      <span className="text-[10px] font-normal text-slate-500">(+07.00)</span>
+    </div>
+  ) : (
+    fmtHours(d.extraHours)
+  )}
+</td>
                         <td className="p-2 border align-top">
                           <div className="flex items-start gap-1">
                             <div className="flex-1 min-w-0 space-y-1">
@@ -852,9 +911,27 @@ export default function DutyPage() {
                 <Button variant="outline" onClick={() => save(true)}>
                   <FileText className="h-4 w-4 mr-1" /> Save as Draft
                 </Button>
-                <Button onClick={() => save(false)} className="bg-emerald-600 hover:bg-emerald-700">
-                  <Save className="h-4 w-4 mr-1" /> Save Duty Sheet
-                </Button>
+                <Button
+  type="button"
+  onClick={() => {
+    if (!canSaveDutySheet) {
+      toast.warning(saveDutySheetValidationMessage, {
+        duration: 5000,
+      });
+      return;
+    }
+
+    save(false);
+  }}
+  className={
+    canSaveDutySheet
+      ? "bg-emerald-600 hover:bg-emerald-700"
+      : "bg-slate-300 text-slate-500 cursor-not-allowed"
+  }
+>
+  <Save className="h-4 w-4 mr-1" />
+  Save Duty Sheet
+</Button>
               </div>
             </div>
           </CardContent>
