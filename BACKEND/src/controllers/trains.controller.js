@@ -21,6 +21,25 @@ VALUES (${b.trainNumber}, ${b.trainName}, ${b.pairedTrainId ?? null}, ${b.status
   res.status(201).json(mapTrain(row));
 }
 
+// async function updateTrain(req, res) {
+//   const { id } = req.params;
+//   const b = req.body;
+//   const [existing] = await sql`SELECT * FROM trains WHERE id = ${id}`;
+//   if (!existing) return res.status(404).json({ error: "Train not found" });
+
+//   const [row] = await sql`
+//     UPDATE trains SET
+//       train_number = ${b.trainNumber ?? existing.train_number},
+//       train_name = ${b.trainName ?? existing.train_name},
+//       // category = ${b.category ?? existing.category},
+//       paired_train_id = ${b.pairedTrainId ?? existing.paired_train_id},
+//       status = ${b.status ?? existing.status}
+//     WHERE id = ${id}
+//     RETURNING *`;
+
+//   res.json(mapTrain(row));
+// }
+
 async function updateTrain(req, res) {
   const { id } = req.params;
   const b = req.body;
@@ -31,7 +50,6 @@ async function updateTrain(req, res) {
     UPDATE trains SET
       train_number = ${b.trainNumber ?? existing.train_number},
       train_name = ${b.trainName ?? existing.train_name},
-      // category = ${b.category ?? existing.category},
       paired_train_id = ${b.pairedTrainId ?? existing.paired_train_id},
       status = ${b.status ?? existing.status}
     WHERE id = ${id}

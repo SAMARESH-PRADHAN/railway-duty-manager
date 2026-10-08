@@ -14,22 +14,19 @@ function drawOtSlip(doc: jsPDF, sheet: DutySheet, emp: Employee, trains: Train[]
   // const rawActualSum = sheet.days.reduce((acc, d) => acc + (d.actualHours || 0), 0);
   // const displayTotalActual = Math.round((rawActualSum - FLAT_DEDUCTION) * 100) / 100;
   // const displayOtPayable = Math.round((displayTotalActual - sheet.totalRosteredHours) * 100) / 100;
- const rawActualSum = sheet.days.reduce(
-  (acc, d) => acc + (d.actualHours || 0),
-  0
-);
+  const rawActualSum = sheet.days.reduce((acc, d) => acc + (d.actualHours || 0), 0);
 
-const displayRawActual = Math.round(rawActualSum * 100) / 100;
+  const displayRawActual = Math.round(rawActualSum * 100) / 100;
 
-// For statutory sheets, the PDF displays the 8-hour deduction
-// separately, so the total shown after "-08.00" must be Actual - 8.
-// For non-statutory sheets, there is no 8-hour deduction.
-const displayTotalActual = sheet.isStatutory
-  ? Math.round((displayRawActual - 8) * 100) / 100
-  : displayRawActual;
+  // For statutory sheets, the PDF displays the 8-hour deduction
+  // separately, so the total shown after "-08.00" must be Actual - 8.
+  // For non-statutory sheets, there is no 8-hour deduction.
+  const displayTotalActual = sheet.isStatutory
+    ? Math.round((displayRawActual - 8) * 100) / 100
+    : displayRawActual;
 
-// OT payable already comes from the correctly recalculated DutySheet.
-const displayOtPayable = sheet.otPayable;
+  // OT payable already comes from the correctly recalculated DutySheet.
+  const displayOtPayable = sheet.otPayable;
 
   const basisLabel = sheet.isStatutory ? "Statutory Hours" : "Non-Statutory";
 
@@ -122,22 +119,86 @@ const displayOtPayable = sheet.otPayable;
       rostHours = fmtHours(d.rosteredHours);
     }
 
-    // Actual column: show REST + timing stacked if both are present
+    // // Actual column: show REST + timing stacked if both are present
+    // let actTime: string;
+    // let actHours: string;
+    // const isActualRest = d.actualIsRest;
+
+    // const isCR = d.leave === "CR";
+
+    // if (hasLeave && hasActualSlots && isCR) {
+    //   actTime = `${d.leave}\n${d.actualSlots.map(slotToStr).join("\n")}`;
+    //   actHours = `------\n${fmtHours(d.actualHours)}`;
+    // } else if (hasLeave && hasActualSlots) {
+    //   actTime = `${d.leave}\n${d.actualSlots.map(slotToStr).join("\n")}`;
+    //   actHours = fmtHours(d.actualHours);
+    // } else if (hasLeave) {
+    //   actTime = d.leave as string;
+    //   actHours = isCR ? "------" : fmtHours(d.actualHours);
+    // } else if (isActualRest && hasActualSlots) {
+    //   actTime = `REST\n${d.actualSlots.map(slotToStr).join("\n")}`;
+    //   actHours = `------\n${fmtHours(d.actualHours)}`;
+    // } else if (isActualRest) {
+    //   actTime = "REST";
+    //   actHours = "------";
+    // } else {
+    //   actTime = d.actualSlots.map(slotToStr).join("\n") || "-";
+    //   actHours = fmtHours(d.actualHours);
+    // }
+
+    // const netActual = Math.max(0, Math.round(d.actualHours * 100) / 100);
+
+    // let extraDisplay: string;
+    // if (d.leave === "CR") {
+    //   extraDisplay = `${fmtHours(netActual)}\n(-08.00)`;
+    // } else if (d.leave && d.leave !== "None") {
+    //   extraDisplay = `${fmtHours(d.extraHours)}\n(+07.00)`;
+    // } else {
+    //   extraDisplay =
+    //     d.extraHours < 0
+    //       ? `(-${fmtHours(Math.abs(d.extraHours))})`
+    //       : d.extraHours > 0
+    //         ? fmtHours(d.extraHours)
+    //         : "";
+    // }
+        // Actual column: show REST + timing stacked if both are present
     let actTime: string;
     let actHours: string;
     const isActualRest = d.actualIsRest;
 
     const isCR = d.leave === "CR";
+    const netActual = Math.max(0, Math.round((d.actualHours || 0) * 100) / 100);
 
-    if (hasLeave && hasActualSlots && isCR) {
-      actTime = `${d.leave}\n${d.actualSlots.map(slotToStr).join("\n")}`;
-      actHours = `------\n${fmtHours(d.actualHours)}`;
-    } else if (hasLeave && hasActualSlots) {
-      actTime = `${d.leave}\n${d.actualSlots.map(slotToStr).join("\n")}`;
-      actHours = fmtHours(d.actualHours);
+    if (hasLeave && isCR) {
+      // CR leave: Actual Hours always shows ------ ; if any hours worked, stack them under it
+      actTime = hasActualSlots
+        ? `${d.leave}\n${d.actualSlots.map(slotToStr).join("\n")}`
+        : (d.leave as string);
+      actHours =
+        netActual > 0 ? `------\n${fmtHours(d.actualHours)}` : "------";
+    // } else if (hasLeave && hasActualSlots) {
+    //   // Other leave (CL/LAP/etc) + worked slots: show leave + timings, hours as stored (e.g. 07.00+extra)
+    //   actTime = `${d.leave}\n${d.actualSlots.map(slotToStr).join("\n")}`;
+    //   actHours = fmtHours(d.actualHours);
+    // } else if (hasLeave) {
+    //   // Other leave only: Actual Hours shows 07.00 (from stored actualHours)
+    //   actTime = d.leave as string;
+    //   actHours = fmtHours(d.actualHours);
     } else if (hasLeave) {
-      actTime = d.leave as string;
-      actHours = isCR ? "------" : fmtHours(d.actualHours);
+      // Other leave (CL/LAP/NH/PL/SCL/Sick): credit is 07.00
+      // If also worked extra, show 07.00 on first line and the extra worked hours under it
+      actTime = hasActualSlots
+        ? `${d.leave}\n${d.actualSlots.map(slotToStr).join("\n")}`
+        : (d.leave as string);
+      const leaveCredit = 7;
+      const workedExtra = Math.max(
+        0,
+        Math.round((netActual - leaveCredit) * 100) / 100,
+      );
+      actHours =
+        workedExtra > 0
+          ? `${fmtHours(leaveCredit)}\n${fmtHours(workedExtra)}`
+          : fmtHours(leaveCredit);
     } else if (isActualRest && hasActualSlots) {
       actTime = `REST\n${d.actualSlots.map(slotToStr).join("\n")}`;
       actHours = `------\n${fmtHours(d.actualHours)}`;
@@ -149,21 +210,31 @@ const displayOtPayable = sheet.otPayable;
       actHours = fmtHours(d.actualHours);
     }
 
-   const netActual = Math.max(0, Math.round(d.actualHours * 100) / 100);
-
-let extraDisplay: string;
-if (d.leave === "CR") {
-  extraDisplay = `${fmtHours(netActual)}\n(-08.00)`;
-} else if (d.leave && d.leave !== "None") {
-  extraDisplay = `${fmtHours(d.extraHours)}\n(+07.00)`;
-} else {
-  extraDisplay =
-    d.extraHours < 0
-      ? `(-${fmtHours(Math.abs(d.extraHours))})`
-      : d.extraHours > 0
-        ? fmtHours(d.extraHours)
-        : "";
-}
+    // Extra Hours Value column (PDF display only — calculations unchanged)
+    let extraDisplay: string;
+    if (isCR) {
+      // Only CR: (-08.00)
+      // CR + worked hours: (-08.00) then the worked hours under it
+      extraDisplay =
+        netActual > 0
+          ? `(-08.00)\n${fmtHours(netActual)}`
+          : "(-08.00)";
+    } else if (d.leave && d.leave !== "None") {
+      // Other leave: show only extraHours (actual − rostered); negatives in brackets
+      extraDisplay =
+        d.extraHours < 0
+          ? `(-${fmtHours(Math.abs(d.extraHours))})`
+          : d.extraHours > 0
+            ? fmtHours(d.extraHours)
+            : "";
+    } else {
+      extraDisplay =
+        d.extraHours < 0
+          ? `(-${fmtHours(Math.abs(d.extraHours))})`
+          : d.extraHours > 0
+            ? fmtHours(d.extraHours)
+            : "";
+    }
 
     return [
       d.dayName.slice(0, 3),
@@ -177,19 +248,28 @@ if (d.leave === "CR") {
     ];
   });
 
- const foot: any[] = [
-    ["", "", "", "", "", { content: fmtHours(displayRawActual), styles: { halign: "right" } }, "", ""],
+  const foot: any[] = [
+    [
+      "",
+      "",
+      "",
+      "",
+      "",
+      { content: fmtHours(displayRawActual), styles: { halign: "right" } },
+      "",
+      "",
+    ],
   ];
   if (sheet.isStatutory) {
-  foot.push(["", "", "", "", "", { content: `-08.00`, styles: { halign: "right" } }, "", ""]);
-}
+    foot.push(["", "", "", "", "", { content: `-08.00`, styles: { halign: "right" } }, "", ""]);
+  }
   // foot.push(["", "", "", "", "", { content: `-${fmtHours(FLAT_DEDUCTION)}`, styles: { halign: "right" } }, "", ""]); // always show -08.00
   foot.push([
     { content: "TOTAL", colSpan: 3, styles: { halign: "center", fontStyle: "bold" } },
     { content: fmtHours(sheet.totalRosteredHours), styles: { fontStyle: "bold", halign: "right" } },
     { content: "OT Payable", styles: { fontStyle: "bold", halign: "center" } },
-    { content: fmtHours(displayTotalActual), styles: { fontStyle: "bold", halign: "right" } }, 
-    { content: fmtHours(displayOtPayable), styles: { fontStyle: "bold", halign: "right" } }, 
+    { content: fmtHours(displayTotalActual), styles: { fontStyle: "bold", halign: "right" } },
+    { content: fmtHours(displayOtPayable), styles: { fontStyle: "bold", halign: "right" } },
   ]);
 
   autoTable(doc, {
@@ -216,13 +296,13 @@ if (d.leave === "CR") {
         { content: "Extra Hours", colSpan: 2, styles: { halign: "center" } },
       ],
       [
-  { content: "Timings", styles: { halign: "center" } },
-  { content: "Hours", styles: { halign: "center" } },
-  { content: "Timings", styles: { halign: "center" } },
-  { content: "Hours", styles: { halign: "center" } },
-  { content: "Value", styles: { halign: "center" } },
-  { content: "Remarks", styles: { halign: "center" } },
-]
+        { content: "Timings", styles: { halign: "center" } },
+        { content: "Hours", styles: { halign: "center" } },
+        { content: "Timings", styles: { halign: "center" } },
+        { content: "Hours", styles: { halign: "center" } },
+        { content: "Value", styles: { halign: "center" } },
+        { content: "Remarks", styles: { halign: "center" } },
+      ],
     ],
     body,
     foot,

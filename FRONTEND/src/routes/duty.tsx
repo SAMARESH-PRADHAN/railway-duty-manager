@@ -754,7 +754,7 @@ export default function DutyPage() {
                         </td>
                         <td className={`p-2 border align-top ${rosteredCellBg}`}>
                           <Input
-                            className="h-7 text-xs w-full"
+                            className="h-7 text-xs w-[90px]"
                             type="number"
                             step="0.01"
                             value={d.rosteredHours}
@@ -783,7 +783,7 @@ export default function DutyPage() {
                         </td>
                         <td className="p-2 border align-top">
                           <Input
-                            className="h-7 text-xs w-full"
+                            className="h-7 text-xs w-[90px]"
                             type="number"
                             step="0.01"
                             value={netActualOf(d)}
@@ -1098,7 +1098,7 @@ function SlotEditor({
         <div key={i} className="flex items-center gap-1 flex-wrap">
           <Input
             type="time"
-            className="h-7 text-xs w-[92px]"
+            className="h-7 text-xs w-[105px]"
             value={s.from}
             onChange={(e) => {
               const n = [...slots];
@@ -1109,7 +1109,7 @@ function SlotEditor({
           <span className="text-slate-400">–</span>
           <Input
             type="time"
-            className="h-7 text-xs w-[92px]"
+            className="h-7 text-xs w-[105px]"
             value={s.to}
             onChange={(e) => {
               const n = [...slots];
