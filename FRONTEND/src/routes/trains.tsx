@@ -35,12 +35,33 @@ export default function TrainsPage() {
   const openAdd = () => { setEditing(null); setForm({ trainNumber: "", trainName: ""}); setOpen(true); };
   const openEdit = (t: Train) => { setEditing(t); setForm(t); setOpen(true); };
 
-  const save = () => {
-    if (!form.trainNumber || !form.trainName) { toast.error("Train number and name are required"); return; }
-    if (editing) { updateTrain(editing.id, form); toast.success("Train updated"); }
-    else { addTrain(form as any); toast.success("Train added"); }
+  // const save = () => {
+  //   if (!form.trainNumber || !form.trainName) { toast.error("Train number and name are required"); return; }
+  //   if (editing) { updateTrain(editing.id, form); toast.success("Train updated"); }
+  //   else { addTrain(form as any); toast.success("Train added"); }
+  //   setOpen(false);
+  // };
+  const save = async () => {
+  if (!form.trainNumber || !form.trainName) {
+    toast.error("Train number and name are required");
+    return;
+  }
+  try {
+    if (editing) {
+      await updateTrain(editing.id, {
+        trainNumber: form.trainNumber,
+        trainName: form.trainName,
+      });
+      toast.success("Train updated");
+    } else {
+      await addTrain(form as any);
+      toast.success("Train added");
+    }
     setOpen(false);
-  };
+  } catch (err) {
+    toast.error(err instanceof Error ? err.message : "Failed to save train");
+  }
+};
 
   const downloadExcel = () => {
     const rows = filtered.map((t) => ({
