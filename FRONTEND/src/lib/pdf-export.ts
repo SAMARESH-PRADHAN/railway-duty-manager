@@ -1,7 +1,7 @@
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import type { DutySheet, Employee, Train } from "./types";
-import { fmtDate, fmtHours } from "./ot-utils";
+import { fmtDate, fmtHours, leaveHoursCredit, slotHours } from "./ot-utils";
 
 function slotToStr(s: { from: string; to: string }) {
   return `${s.from.replace(":", ".")}:${s.to.replace(":", ".")}`;
@@ -190,7 +190,7 @@ function drawOtSlip(doc: jsPDF, sheet: DutySheet, emp: Employee, trains: Train[]
       actTime = hasActualSlots
         ? `${d.leave}\n${d.actualSlots.map(slotToStr).join("\n")}`
         : (d.leave as string);
-      const leaveCredit = 7;
+      const leaveCredit = leaveHoursCredit(d.leave, d.rosteredHours);
       const workedExtra = Math.max(
         0,
         Math.round((netActual - leaveCredit) * 100) / 100,
@@ -220,14 +220,17 @@ function drawOtSlip(doc: jsPDF, sheet: DutySheet, emp: Employee, trains: Train[]
           ? `(-08.00)\n${fmtHours(netActual)}`
           : "(-08.00)";
     } else if (d.leave && d.leave !== "None") {
-      // Other leave: show only extraHours (actual − rostered); negatives in brackets
-      extraDisplay =
-        d.extraHours < 0
-          ? `(-${fmtHours(Math.abs(d.extraHours))})`
-          : d.extraHours > 0
-            ? fmtHours(d.extraHours)
-            : "";
-    } else {
+  // Other leave: first line = leave deduction (rostered - credit, normally 01.00),
+  // second line = hours actually worked on top of the leave credit.
+  const credit = leaveHoursCredit(d.leave, d.rosteredHours);
+  const deficit = Math.round((d.rosteredHours - credit) * 100) / 100;
+  const workedExtra = Math.max(0, Math.round((netActual - credit) * 100) / 100);
+
+  const lines: string[] = [];
+  if (deficit > 0) lines.push(`(-${fmtHours(deficit)})`);
+  if (workedExtra > 0) lines.push(fmtHours(workedExtra));
+  extraDisplay = lines.join("\n");
+} else {
       extraDisplay =
         d.extraHours < 0
           ? `(-${fmtHours(Math.abs(d.extraHours))})`
