@@ -33,20 +33,42 @@ export function defaultRosterSlot(designation?: string): TimeSlot {
   return { from, to: addHoursToHHMM(from, DEFAULT_SHIFT_HOURS) };
 }
 
-export function slotHours(slot: TimeSlot): number {
+
+// Duration of one slot in whole minutes (no rounding errors)
+function slotMinutes(slot: TimeSlot): number {
   if (!slot.from || !slot.to) return 0;
   const [fh, fm] = slot.from.split(":").map(Number);
   const [th, tm] = slot.to.split(":").map(Number);
   if ([fh, fm, th, tm].some((n) => Number.isNaN(n))) return 0;
-  let start = fh * 60 + fm;
+  const start = fh * 60 + fm;
   let end = th * 60 + tm;
   if (end <= start) end += 24 * 60;
-  return Math.round(((end - start) / 60) * 100) / 100;
+  return end - start;
 }
 
-export function sumSlots(slots: TimeSlot[]): number {
-  return Math.round(slots.reduce((a, s) => a + slotHours(s), 0) * 100) / 100;
+export function slotHours(slot: TimeSlot): number {
+  return Math.round((slotMinutes(slot) / 60) * 100) / 100;
 }
+
+// Add up MINUTES first, convert to hours and round only once at the end
+export function sumSlots(slots: TimeSlot[]): number {
+  const totalMinutes = slots.reduce((a, s) => a + slotMinutes(s), 0);
+  return Math.round((totalMinutes / 60) * 100) / 100;
+}
+// export function slotHours(slot: TimeSlot): number {
+//   if (!slot.from || !slot.to) return 0;
+//   const [fh, fm] = slot.from.split(":").map(Number);
+//   const [th, tm] = slot.to.split(":").map(Number);
+//   if ([fh, fm, th, tm].some((n) => Number.isNaN(n))) return 0;
+//   let start = fh * 60 + fm;
+//   let end = th * 60 + tm;
+//   if (end <= start) end += 24 * 60;
+//   return Math.round(((end - start) / 60) * 100) / 100;
+// }
+
+// export function sumSlots(slots: TimeSlot[]): number {
+//   return Math.round(slots.reduce((a, s) => a + slotHours(s), 0) * 100) / 100;
+// }
 
 // export function generate14Days(startISO: string, designation?: string): DutyDay[] {
 //   const start = parseISO(startISO);
@@ -144,7 +166,11 @@ export function leaveDeduction(l?: LeaveType): number {
 export function totalDeduction(days: DutyDay[]): number {
   return Math.round(days.reduce((a, d) => a + leaveDeduction(d.leave), 0) * 100) / 100;
 }
-
+/** Hours credited for a paid leave (not CR) = rostered hours - 1, never below 0. */
+export function leaveHoursCredit(leave: LeaveType | undefined, rosteredHours: number): number {
+  if (!leave || leave === "None" || leave === "CR") return 0;
+  return Math.max(0, Math.round((rosteredHours - 1) * 100) / 100);
+}
 export const STATUTORY_HOURS = 104;
 
 export function recalcSheet(sheet: DutySheet): DutySheet {

@@ -12,6 +12,7 @@ import {
   fmtHours,
   generate14Days,
   leaveDeduction,
+  leaveHoursCredit, 
   periodsOverlap,
   sumSlots,
   totalDeduction,
@@ -230,7 +231,7 @@ export default function DutyPage() {
         (d) =>
           d.isRestDay &&
           !d.actualIsRest &&
-          d.actualHours - (d.leave && d.leave !== "None" && d.leave !== "CR" ? 7 : 0) > 0,
+          d.actualHours - leaveHoursCredit(d.leave, d.rosteredHours) > 0,
       ),
     [days],
   );
@@ -277,7 +278,9 @@ export default function DutyPage() {
       merged.rosteredHours =
         patch.rosteredHours !== undefined ? patch.rosteredHours : sumSlots(merged.rosteredSlots);
       merged.actualHours =
-        patch.actualHours !== undefined ? patch.actualHours : sumSlots(merged.actualSlots);
+  patch.actualHours !== undefined
+    ? patch.actualHours
+    : sumSlots(merged.actualSlots) + leaveHoursCredit(merged.leave, merged.rosteredHours);
       const net = Math.max(0, Math.round(merged.actualHours * 100) / 100);
       merged.extraHours = Math.round((net - merged.rosteredHours) * 100) / 100;
       next[idx] = merged;
@@ -291,12 +294,12 @@ export default function DutyPage() {
   };
 
   // Hours credited by a leave (added on top of any actually-worked hours).
-  const leaveHoursCredit = (l?: LeaveType) => (l && l !== "None" && l !== "CR" ? 7 : 0);
+  // const leaveHoursCredit = (l?: LeaveType) => (l && l !== "None" && l !== "CR" ? 7 : 0);
 
   const setLeave = (idx: number, leave: LeaveType) => {
     const d = days[idx];
-    const prevCredit = leaveHoursCredit(d.leave);
-    const newCredit = leaveHoursCredit(leave);
+    const prevCredit = leaveHoursCredit(d.leave, d.rosteredHours);
+const newCredit = leaveHoursCredit(leave, d.rosteredHours);
     const newActualHours = Math.max(
       0,
       Math.round((d.actualHours - prevCredit + newCredit) * 100) / 100,
@@ -757,7 +760,7 @@ export default function DutyPage() {
                             className="h-7 text-xs w-[90px]"
                             type="number"
                             step="0.01"
-                            value={d.rosteredHours}
+                            value={fmtHours(d.rosteredHours)}
                             onChange={(e) =>
                               updateDay(i, { rosteredHours: Number(e.target.value) })
                             }
@@ -769,7 +772,7 @@ export default function DutyPage() {
                             onChange={(s) =>
                               updateDay(i, {
                                 actualSlots: s,
-                                actualHours: sumSlots(s) + leaveHoursCredit(d.leave),
+                               actualHours: sumSlots(s) + leaveHoursCredit(d.leave, d.rosteredHours),
                               })
                             }
                             isRest={d.actualIsRest}
@@ -786,7 +789,7 @@ export default function DutyPage() {
                             className="h-7 text-xs w-[90px]"
                             type="number"
                             step="0.01"
-                            value={netActualOf(d)}
+                            value={fmtHours(netActualOf(d))}
                             onChange={(e) => updateDay(i, { actualHours: Number(e.target.value) })}
                             title="Actual hours — editable"
                           />
@@ -805,7 +808,9 @@ export default function DutyPage() {
   ) : d.leave && d.leave !== "None" ? (
     <div className="flex flex-col leading-tight">
       <span>{fmtHours(d.extraHours)}</span>
-      <span className="text-[10px] font-normal text-slate-500">(+07.00)</span>
+<span className="text-[10px] font-normal text-slate-500">
+  (Leave {fmtHours(leaveHoursCredit(d.leave, d.rosteredHours))})
+</span>
     </div>
   ) : (
     fmtHours(d.extraHours)
