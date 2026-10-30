@@ -12,7 +12,7 @@ import {
   fmtHours,
   generate14Days,
   leaveDeduction,
-  leaveHoursCredit, 
+  leaveHoursCredit,
   periodsOverlap,
   sumSlots,
   totalDeduction,
@@ -236,7 +236,7 @@ export default function DutyPage() {
     [days],
   );
 
-    // ============================================================
+  // ============================================================
   // SAVE DUTY SHEET VALIDATION
   // Employee must have at least 2 qualifying OFF days:
   //   2 Rest
@@ -247,9 +247,7 @@ export default function DutyPage() {
   // ============================================================
 
   const qualifyingOffDays = useMemo(() => {
-    return days.filter(
-      (d) => d.actualIsRest === true || d.leave === "CR"
-    );
+    return days.filter((d) => d.actualIsRest === true || d.leave === "CR");
   }, [days]);
 
   const qualifyingOffDayCount = qualifyingOffDays.length;
@@ -260,9 +258,7 @@ export default function DutyPage() {
     if (canSaveDutySheet) return "";
 
     const restCount = days.filter((d) => d.actualIsRest === true).length;
-    const crCount = days.filter(
-      (d) => !d.actualIsRest && d.leave === "CR"
-    ).length;
+    const crCount = days.filter((d) => !d.actualIsRest && d.leave === "CR").length;
 
     return (
       `${emp?.name ?? "Employee"} must have 2 Rest/CR days before the duty sheet can be saved. ` +
@@ -278,9 +274,9 @@ export default function DutyPage() {
       merged.rosteredHours =
         patch.rosteredHours !== undefined ? patch.rosteredHours : sumSlots(merged.rosteredSlots);
       merged.actualHours =
-  patch.actualHours !== undefined
-    ? patch.actualHours
-    : sumSlots(merged.actualSlots) + leaveHoursCredit(merged.leave, merged.rosteredHours);
+        patch.actualHours !== undefined
+          ? patch.actualHours
+          : sumSlots(merged.actualSlots) + leaveHoursCredit(merged.leave, merged.rosteredHours);
       const net = Math.max(0, Math.round(merged.actualHours * 100) / 100);
       merged.extraHours = Math.round((net - merged.rosteredHours) * 100) / 100;
       next[idx] = merged;
@@ -299,7 +295,7 @@ export default function DutyPage() {
   const setLeave = (idx: number, leave: LeaveType) => {
     const d = days[idx];
     const prevCredit = leaveHoursCredit(d.leave, d.rosteredHours);
-const newCredit = leaveHoursCredit(leave, d.rosteredHours);
+    const newCredit = leaveHoursCredit(leave, d.rosteredHours);
     const newActualHours = Math.max(
       0,
       Math.round((d.actualHours - prevCredit + newCredit) * 100) / 100,
@@ -350,21 +346,20 @@ const newCredit = leaveHoursCredit(leave, d.rosteredHours);
   const save = async (asDraft: boolean) => {
     if (!emp) return toast.error("Select an employee");
     // Drafts are allowed even when the employee does not have
-  // the required 2 Rest/CR days.
-  if (!asDraft && !canSaveDutySheet) {
-    toast.warning(saveDutySheetValidationMessage, {
-      duration: 5000,
-    });
-    return;
-  }
+    // the required 2 Rest/CR days.
+    if (!asDraft && !canSaveDutySheet) {
+      toast.warning(saveDutySheetValidationMessage, {
+        duration: 5000,
+      });
+      return;
+    }
 
-  if (!asDraft && trainIds.length === 0 && !manualTrainNote.trim())
-    return toast.error("Select at least one train or enter an emergency-duty note");
+    if (!asDraft && trainIds.length === 0 && !manualTrainNote.trim())
+      return toast.error("Select at least one train or enter an emergency-duty note");
 
-  if (!startDate) return toast.error("Pick a start date");
+    if (!startDate) return toast.error("Pick a start date");
 
-  if (!asDraft && overlaps)
-    return toast.error("Overlaps with an existing duty sheet");
+    if (!asDraft && overlaps) return toast.error("Overlaps with an existing duty sheet");
     const sheet: DutySheet = {
       id: sheetId,
       employeeId,
@@ -383,7 +378,7 @@ const newCredit = leaveHoursCredit(leave, d.rosteredHours);
       createdAt: existing?.createdAt ?? new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
-     await saveDutySheet(sheet);
+    await saveDutySheet(sheet);
     setDirty(false);
     toast.success(asDraft ? "Saved as draft" : "Duty sheet saved");
     // Small tick so blocker sees dirty=false
@@ -772,7 +767,8 @@ const newCredit = leaveHoursCredit(leave, d.rosteredHours);
                             onChange={(s) =>
                               updateDay(i, {
                                 actualSlots: s,
-                               actualHours: sumSlots(s) + leaveHoursCredit(d.leave, d.rosteredHours),
+                                actualHours:
+                                  sumSlots(s) + leaveHoursCredit(d.leave, d.rosteredHours),
                               })
                             }
                             isRest={d.actualIsRest}
@@ -797,25 +793,27 @@ const newCredit = leaveHoursCredit(leave, d.rosteredHours);
                             <div className="text-[10px] text-amber-700">High</div>
                           )}
                         </td>
-                      <td
-  className={`p-2 border align-top font-semibold ${d.extraHours < 0 ? "text-rose-600" : "text-emerald-700"}`}
->
-  {d.leave === "CR" ? (
-    <div className="flex flex-col leading-tight">
-      <span>{fmtHours(netActualOf(d))}</span>
-      <span className="text-[10px] font-normal text-slate-500">(-08.00)</span>
-    </div>
-  ) : d.leave && d.leave !== "None" ? (
-    <div className="flex flex-col leading-tight">
-      <span>{fmtHours(d.extraHours)}</span>
-<span className="text-[10px] font-normal text-slate-500">
-  (Leave {fmtHours(leaveHoursCredit(d.leave, d.rosteredHours))})
-</span>
-    </div>
-  ) : (
-    fmtHours(d.extraHours)
-  )}
-</td>
+                        <td
+                          className={`p-2 border align-top font-semibold ${d.extraHours < 0 ? "text-rose-600" : "text-emerald-700"}`}
+                        >
+                          {d.leave === "CR" ? (
+                            <div className="flex flex-col leading-tight">
+                              <span>{fmtHours(netActualOf(d))}</span>
+                              <span className="text-[10px] font-normal text-slate-500">
+                                (-08.00)
+                              </span>
+                            </div>
+                          ) : d.leave && d.leave !== "None" ? (
+                            <div className="flex flex-col leading-tight">
+                              <span>{fmtHours(d.extraHours)}</span>
+                              <span className="text-[10px] font-normal text-slate-500">
+                                (Leave {fmtHours(leaveHoursCredit(d.leave, d.rosteredHours))})
+                              </span>
+                            </div>
+                          ) : (
+                            fmtHours(d.extraHours)
+                          )}
+                        </td>
                         <td className="p-2 border align-top">
                           <div className="flex items-start gap-1">
                             <div className="flex-1 min-w-0 space-y-1">
@@ -885,26 +883,26 @@ const newCredit = leaveHoursCredit(leave, d.rosteredHours);
               <StatBox label="Total Rostered" value={fmtHours(totals.totalRost)} />
               <StatBox label="Total Actual" value={fmtHours(totals.totalActual)} />
               <div className="rounded-lg border p-3 bg-slate-50 space-y-2">
-  <div>
-  <div className="text-xs text-slate-500">
-    {isStatutory ? "Statutory Basis" : "Statutory Basis"}
-  </div>
-  <div className="text-xl font-bold text-slate-800">
-    {fmtHours(isStatutory ? totals.totalRost + 8 : totals.totalRost)}
-  </div>
-</div>
-  <div className="relative">
-    <select
-      className="w-full h-8 appearance-none bg-white border rounded-md px-2 pr-6 text-xs text-slate-700 focus:outline-none focus:ring-1 focus:ring-ring cursor-pointer"
-      value={isStatutory ? "statutory" : "non-statutory"}
-      onChange={(e) => setIsStatutory(e.target.value === "statutory")}
-    >
-      <option value="statutory">Statutory</option>
-      <option value="non-statutory">Non-Statutory</option>
-    </select>
-    <ChevronDown className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
-  </div>
-</div>
+                <div>
+                  <div className="text-xs text-slate-500">
+                    {isStatutory ? "Statutory Basis" : "Statutory Basis"}
+                  </div>
+                  <div className="text-xl font-bold text-slate-800">
+                    {fmtHours(isStatutory ? totals.totalRost + 8 : totals.totalRost)}
+                  </div>
+                </div>
+                <div className="relative">
+                  <select
+                    className="w-full h-8 appearance-none bg-white border rounded-md px-2 pr-6 text-xs text-slate-700 focus:outline-none focus:ring-1 focus:ring-ring cursor-pointer"
+                    value={isStatutory ? "statutory" : "non-statutory"}
+                    onChange={(e) => setIsStatutory(e.target.value === "statutory")}
+                  >
+                    <option value="statutory">Statutory</option>
+                    <option value="non-statutory">Non-Statutory</option>
+                  </select>
+                  <ChevronDown className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
+                </div>
+              </div>
               <StatBox label="OT Payable" value={fmtHours(totals.ot)} highlight />
             </div>
 
@@ -917,26 +915,26 @@ const newCredit = leaveHoursCredit(leave, d.rosteredHours);
                   <FileText className="h-4 w-4 mr-1" /> Save as Draft
                 </Button>
                 <Button
-  type="button"
-  onClick={() => {
-    if (!canSaveDutySheet) {
-      toast.warning(saveDutySheetValidationMessage, {
-        duration: 5000,
-      });
-      return;
-    }
+                  type="button"
+                  onClick={() => {
+                    if (!canSaveDutySheet) {
+                      toast.warning(saveDutySheetValidationMessage, {
+                        duration: 5000,
+                      });
+                      return;
+                    }
 
-    save(false);
-  }}
-  className={
-    canSaveDutySheet
-      ? "bg-emerald-600 hover:bg-emerald-700"
-      : "bg-slate-300 text-slate-500 cursor-not-allowed"
-  }
->
-  <Save className="h-4 w-4 mr-1" />
-  Save Duty Sheet
-</Button>
+                    save(false);
+                  }}
+                  className={
+                    canSaveDutySheet
+                      ? "bg-emerald-600 hover:bg-emerald-700"
+                      : "bg-slate-300 text-slate-500 cursor-not-allowed"
+                  }
+                >
+                  <Save className="h-4 w-4 mr-1" />
+                  Save Duty Sheet
+                </Button>
               </div>
             </div>
           </CardContent>

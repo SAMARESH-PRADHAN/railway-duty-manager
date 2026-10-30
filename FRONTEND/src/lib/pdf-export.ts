@@ -51,7 +51,7 @@ function drawOtSlip(doc: jsPDF, sheet: DutySheet, emp: Employee, trains: Train[]
     "Period to",
   ];
   const rightValues = [
-    fmtHours(displayRawActual), // was sheet.totalActualHours
+    fmtHours(displayTotalActual), // was sheet.totalActualHours
     fmtHours(sheet.totalRosteredHours),
     sheet.isStatutory ? fmtHours(sheet.statutoryHours) : fmtHours(sheet.totalRosteredHours),
     // fmtHours(displayTotalActual - sheet.totalRosteredHours), // was sheet.totalActualHours - sheet.totalRosteredHours
