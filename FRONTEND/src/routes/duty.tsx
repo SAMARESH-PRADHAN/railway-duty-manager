@@ -224,7 +224,12 @@ export default function DutyPage() {
       ot,
     };
   }, [days, isStatutory]);
+  const REQUIRED_ROSTER_HOURS = 96;
 
+  const isRosterHoursInvalid =
+    days.length > 0 && Math.round(totals.totalRost * 100) / 100 !== REQUIRED_ROSTER_HOURS;
+
+  const rosterWarningMessage = `${emp?.name ?? "Employee"} must have exactly ${REQUIRED_ROSTER_HOURS} hours of roster duty. Current total rostered hours: ${fmtHours(totals.totalRost)}.`;
   const bankedRestDays = useMemo(
     () =>
       days.filter(
@@ -343,7 +348,7 @@ export default function DutyPage() {
     applyStartDate(iso);
   };
 
-  const save = async (asDraft: boolean) => {
+  const save = async (asDraft: boolean, skipRosterConfirm = false) => {
     if (!emp) return toast.error("Select an employee");
     // Drafts are allowed even when the employee does not have
     // the required 2 Rest/CR days.
@@ -354,6 +359,14 @@ export default function DutyPage() {
       return;
     }
 
+    if (isRosterHoursInvalid && !skipRosterConfirm) {
+  const ok = await confirmDialog({
+    title: "Roster hours is not 96",
+    description: `${rosterWarningMessage} A roster of exactly 96 hours is compulsory. Do you still want to ${asDraft ? "save this as a draft" : "save this duty sheet"}?`,
+    confirmText: asDraft ? "Save as Draft" : "Save Duty Sheet",
+  });
+  if (!ok) return;
+}
     if (!asDraft && trainIds.length === 0 && !manualTrainNote.trim())
       return toast.error("Select at least one train or enter an emergency-duty note");
 
@@ -655,7 +668,7 @@ export default function DutyPage() {
                 </Button>
               </div>
               <div className="text-xs text-slate-500">
-                Employee: <b>{emp?.name}</b> · Period:{" "}
+                Employee: <b>{emp?.name}</b> · Token: <b>{emp?.tokenNo || "—"}</b> · Period:{" "}
                 <b>
                   {fmtDate(startDate)} – {fmtDate(endDate)}
                 </b>
@@ -880,7 +893,7 @@ export default function DutyPage() {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              <StatBox label="Total Rostered" value={fmtHours(totals.totalRost)} />
+              <StatBox label="Total Rostered" value={fmtHours(totals.totalRost)} warning={isRosterHoursInvalid} />
               <StatBox label="Total Actual" value={fmtHours(totals.totalActual)} />
               <div className="rounded-lg border p-3 bg-slate-50 space-y-2">
                 <div>
@@ -1020,6 +1033,14 @@ export default function DutyPage() {
               <Button
                 className="bg-[#0b2545] hover:bg-[#0b2545]/90"
                 onClick={async () => {
+                  if (isRosterHoursInvalid) {
+                    const ok = await confirmDialog({
+      title: "Roster hours is not 96",
+      description: `${rosterWarningMessage} Do you still want to save this as a draft?`,
+      confirmText: "Save as Draft",
+    });
+    if (!ok) return;
+                  }
                   const proceed = unsavedModal.proceed;
                   setUnsavedModal({ open: false, proceed: null });
                   await save(true);
@@ -1063,19 +1084,32 @@ function StatBox({
   label,
   value,
   highlight,
+  warning,
 }: {
   label: string;
   value: string;
   highlight?: boolean;
+  warning?: boolean;
 }) {
   return (
     <div
-      className={`rounded-lg border p-3 ${highlight ? "bg-emerald-50 border-emerald-300" : "bg-slate-50"}`}
+      className={`rounded-lg border p-3 ${
+        warning
+          ? "bg-red-50 border-red-300"
+          : highlight
+            ? "bg-emerald-50 border-emerald-300"
+            : "bg-slate-50"
+      }`}
     >
-      <div className="text-xs text-slate-500">{label}</div>
-      <div className={`text-xl font-bold ${highlight ? "text-emerald-700" : "text-slate-800"}`}>
+      <div className={`text-xs ${warning ? "text-red-600" : "text-slate-500"}`}>{label}</div>
+      <div
+        className={`text-xl font-bold ${
+          warning ? "text-red-600" : highlight ? "text-emerald-700" : "text-slate-800"
+        }`}
+      >
         {value}
       </div>
+      {warning && <div className="text-[10px] text-red-600 mt-1">Must be 96.00 hrs</div>}
     </div>
   );
 }
