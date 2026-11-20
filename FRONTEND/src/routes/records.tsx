@@ -6,6 +6,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Combobox } from "@/components/Combobox";
+import { MultiCombobox } from "@/components/MultiCombobox";
 import { FileDown, Pencil, Trash2 } from "lucide-react";
 import { fmtDate, fmtHours } from "@/lib/ot-utils";
 import { exportOtSlipPdf, exportMultipleOtSlipsPdf } from "@/lib/pdf-export";
@@ -17,17 +18,19 @@ export default function RecordsPage() {
   const { dutySheets, employees, trains, deleteDutySheet } = useData();
   const confirm = useConfirm();
   const [emp, setEmp] = useState<string>("all");
-  const [trn, setTrn] = useState<string>("all");
+  // const [trn, setTrn] = useState<string>("all");
+  const [trns, setTrns] = useState<string[]>([]);
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
 
   const filtered = useMemo(() => dutySheets.filter((s) => {
     if (emp !== "all" && s.employeeId !== emp) return false;
-    if (trn !== "all" && !s.trainIds.includes(trn)) return false;
+    // if (trn !== "all" && !s.trainIds.includes(trn)) return false;
+if (trns.length > 0 && !s.trainIds.some((id) => trns.includes(id))) return false;
     if (from && s.periodEndDate < from) return false;
     if (to && s.periodStartDate > to) return false;
     return true;
-  }).sort((a, b) => (a.periodStartDate < b.periodStartDate ? 1 : -1)), [dutySheets, emp, trn, from, to]);
+  }).sort((a, b) => (a.periodStartDate < b.periodStartDate ? 1 : -1)), [dutySheets, emp, trns, from, to]);
 const downloadAllPdf = () => {
   const savable = filtered.filter((s) => !s.isDraft); // drafts can't be exported, same rule as per-row button
   if (savable.length === 0) {
@@ -63,12 +66,14 @@ const downloadAllPdf = () => {
           options={[{ value: "all", label: "All Employees" }, ...employees.filter((e) => !e.isDeleted).map((e) => ({ value: e.id, label: e.name, hint: `Token ${e.tokenNo}` }))]}
           placeholder="Employee"
         />
-        <Combobox
-          value={trn}
-          onChange={setTrn}
-          options={[{ value: "all", label: "All Trains" }, ...trains.filter((t) => !t.isDeleted).map((t) => ({ value: t.id, label: `${t.trainNumber} — ${t.trainName}` }))]}
-          placeholder="Train"
-        />
+        <MultiCombobox
+  values={trns}
+  onChange={setTrns}
+  options={trains
+    .filter((t) => !t.isDeleted)
+    .map((t) => ({ value: t.id, label: `${t.trainNumber} — ${t.trainName}` }))}
+  placeholder="All Trains"
+/>
         <Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} placeholder="From" />
         <Input type="date" value={to} onChange={(e) => setTo(e.target.value)} placeholder="To" />
       </CardContent>

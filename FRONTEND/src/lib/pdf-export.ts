@@ -274,7 +274,31 @@ function drawOtSlip(doc: jsPDF, sheet: DutySheet, emp: Employee, trains: Train[]
     { content: fmtHours(displayTotalActual), styles: { fontStyle: "bold", halign: "right" } },
     { content: fmtHours(displayOtPayable), styles: { fontStyle: "bold", halign: "right" } },
   ]);
+  // ---- Sanction / forwarding row (2 sections, font size 9) ----
+  const sanctionCellStyles = {
+    halign: "left" as const,
+    valign: "top" as const,
+    fontStyle: "normal" as const,
+    fontSize: 9,
+    cellPadding: { top: 2, right: 2, bottom: 2, left: 2 },
+    minCellHeight: 22,
+  };
 
+  foot.push([
+    {
+      content:
+        "No.....................Date...................................Forwarded for favour of sanction. The particulars entered herein are correct and there has not been any unauthorized absence of the employee during the period covered by this OT slip",
+      colSpan: 4, // Day + Date + Rostered Timings + Rostered Hours
+      styles: sanctionCellStyles,
+    },
+    {
+      content:
+        "No......................Date....................................Sanction under Sect 71 (1) (2) and 71 (4) od Railway service amendment act 1956 Amount admissible is Rs............................... which will be drawn in overtime pay sheet.",
+      colSpan: 4, // Actual Timings + Actual Hours + Extra Value + Remarks
+      styles: sanctionCellStyles,
+    },
+  ]);
+  
   autoTable(doc, {
     startY: afterHeaderY,
     head: [
@@ -311,9 +335,9 @@ function drawOtSlip(doc: jsPDF, sheet: DutySheet, emp: Employee, trains: Train[]
     foot,
     styles: {
       fontSize: 8.5,
-      cellPadding: { top: 2.2, right: 1.5, bottom: 2.2, left: 1.5 },
+      cellPadding: { top: 0.8, right: 1.5, bottom: 0.8, left: 1.5 },
       valign: "middle",
-      minCellHeight: 9,
+      minCellHeight: 6,
       lineColor: [0, 0, 0],
       lineWidth: 0.15,
       fillColor: 255,
@@ -332,7 +356,7 @@ function drawOtSlip(doc: jsPDF, sheet: DutySheet, emp: Employee, trains: Train[]
       textColor: 0,
       lineColor: [0, 0, 0],
       lineWidth: 0.15,
-      minCellHeight: 8,
+      minCellHeight: 6,
     },
     theme: "grid",
     columnStyles: {
@@ -348,7 +372,7 @@ function drawOtSlip(doc: jsPDF, sheet: DutySheet, emp: Employee, trains: Train[]
     margin: { left: 10, right: 10 },
   });
 
-  let y = (doc as any).lastAutoTable.finalY + 16;
+  let y = (doc as any).lastAutoTable.finalY + 28;
   doc.setFont("helvetica", "normal");
   doc.setFontSize(9);
   doc.text("Officer-in-charge", 20, y);
