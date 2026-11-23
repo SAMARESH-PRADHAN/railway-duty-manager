@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Combobox } from "@/components/Combobox";
-import { FileDown, Printer } from "lucide-react";
+import { FileDown, Printer, ArrowUp, ArrowDown } from "lucide-react";
 import { fmtDate, fmtHours, periodsOverlap } from "@/lib/ot-utils";
 import { exportReportPdf, type ReportRow } from "@/lib/pdf-export";
 import { format } from "date-fns";
@@ -24,6 +24,7 @@ export default function ReportsPage() {
   const [date, setDate] = useState(format(new Date(), "dd.MM.yyyy"));
   const [body, setBody] = useState("");
   const [generated, setGenerated] = useState(false);
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
 
   const rows: ReportRow[] = useMemo(() => {
     if (!generated) return [];
@@ -40,6 +41,24 @@ export default function ReportsPage() {
       })
       .filter((r) => r.sheets.length > 0);
   }, [employees, dutySheets, group, train, from, to, generated]);
+
+  const sortedRows: ReportRow[] = useMemo(() => {
+  const dir = sortOrder === "asc" ? 1 : -1;
+  return rows
+    .map((r) => ({
+      ...r,
+      // sort the periods inside each employee's row
+      sheets: [...r.sheets].sort(
+        (a, b) => a.periodStartDate.localeCompare(b.periodStartDate) * dir,
+      ),
+    }))
+    // sort the employees by their first period
+    .sort((a, b) => {
+      const byPeriod =
+        a.sheets[0].periodStartDate.localeCompare(b.sheets[0].periodStartDate) * dir;
+      return byPeriod !== 0 ? byPeriod : a.employee.name.localeCompare(b.employee.name);
+    });
+}, [rows, sortOrder]);
 
   const generate = () => {
     const label = group === "all" ? "All Groups" : `Group '${group}'`;
@@ -90,9 +109,21 @@ export default function ReportsPage() {
             <CardHeader className="flex flex-row items-center justify-between flex-wrap gap-2">
               <CardTitle className="text-base">Results — {group === "all" ? "All Groups" : `Group ${group}`} ({rows.length} employee{rows.length === 1 ? "" : "s"})</CardTitle>
               <div className="flex gap-2">
+              <Button
+  variant="outline"
+  size="sm"
+  onClick={() => setSortOrder((o) => (o === "asc" ? "desc" : "asc"))}
+>
+  {sortOrder === "asc" ? (
+    <ArrowUp className="h-4 w-4 mr-1" />
+  ) : (
+    <ArrowDown className="h-4 w-4 mr-1" />
+  )}
+  Period: {sortOrder === "asc" ? "Ascending" : "Descending"}
+</Button>
                 {/* <Button variant="outline" size="sm" onClick={() => window.print()}><Printer className="h-4 w-4 mr-1" /> Print</Button> */}
                 <Button size="sm" className="bg-[#0b2545] hover:bg-[#0b2545]/90"
-                  onClick={() => exportReportPdf({ rows, groupType: group === "all" ? "All" : group, from, to, refNo, date, body })}>
+                  onClick={() => exportReportPdf({ rows: sortedRows, groupType: group === "all" ? "All" : group, from, to, refNo, date, body })}>
                   <FileDown className="h-4 w-4 mr-1" /> Export PDF
                 </Button>
               </div>
@@ -108,7 +139,7 @@ export default function ReportsPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {rows.map((r, i) => (
+                    {sortedRows.map((r, i) => (
                       <tr key={r.employee.id} className="border-t align-top">
                         <td className="p-3">{i + 1}</td>
                         <td>
@@ -123,7 +154,7 @@ export default function ReportsPage() {
                         <td className="text-right whitespace-pre-line font-bold text-emerald-700 pr-8">{r.sheets.map((s) => fmtHours(s.otPayable)).join("\n")}</td>
                       </tr>
                     ))}
-                    {rows.length === 0 && <tr><td colSpan={7} className="p-8 text-center text-slate-500">No duty sheets match the filters.</td></tr>}
+                    {sortedRows.length === 0 && <tr><td colSpan={7} className="p-8 text-center text-slate-500">No duty sheets match the filters.</td></tr>}
                   </tbody>
                 </table>
               </div>
